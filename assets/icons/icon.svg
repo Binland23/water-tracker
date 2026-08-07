@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="112" fill="#0b1f2a"/>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5ec8e8"/>
+      <stop offset="100%" stop-color="#1a7a96"/>
+    </linearGradient>
+    <linearGradient id="w" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7ad4ec"/>
+      <stop offset="100%" stop-color="#2a9bb8"/>
+    </linearGradient>
+  </defs>
+  <!-- Droplet -->
+  <path
+    fill="url(#g)"
+    d="M256 96c0 0-96 120-96 200a96 96 0 0 0 192 0c0-80-96-200-96-200z"
+  />
+  <!-- Highlight -->
+  <path
+    fill="url(#w)"
+    opacity="0.55"
+    d="M256 128c0 0-64 88-64 152a64 64 0 0 0 56 63.5C220 310 208 268 208 236c0-44 48-108 48-108z"
+  />
+  <!-- Soft sheen -->
+  <ellipse cx="230" cy="220" rx="22" ry="32" fill="#fff" opacity="0.18"/>
+</svg>

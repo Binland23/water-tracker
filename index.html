@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="description" content="Track your daily water intake. Offline-ready for iPhone." />
+    <meta name="theme-color" content="#0b1f2a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Water" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Water</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="top-bar">
+        <div class="top-bar-text">
+          <p class="eyebrow">Today</p>
+          <h1 id="date-label" class="date-label">—</h1>
+        </div>
+        <button type="button" id="btn-settings" class="icon-btn" aria-label="Settings">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 1v2.5M12 20.5V23M4.22 4.22l1.77 1.77M17.99 17.99l1.77 1.77M1 12h2.5M20.5 12H23M4.22 19.78l1.77-1.77M17.99 6.01l1.77-1.77" />
+          </svg>
+        </button>
+      </header>
+
+      <main class="main">
+        <section class="hero" aria-label="Daily progress">
+          <div class="gauge-wrap">
+            <svg class="gauge" viewBox="0 0 200 200" aria-hidden="true">
+              <defs>
+                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#5ec8e8" />
+                  <stop offset="55%" stop-color="#2a9bb8" />
+                  <stop offset="100%" stop-color="#1a6f8a" />
+                </linearGradient>
+                <clipPath id="waveClip">
+                  <circle cx="100" cy="100" r="72" />
+                </clipPath>
+              </defs>
+              <!-- Ring starts at top (12 o'clock) -->
+              <g class="gauge-rings" transform="rotate(-90 100 100)">
+                <circle class="gauge-track" cx="100" cy="100" r="88" />
+                <circle id="progress-ring" class="gauge-ring" cx="100" cy="100" r="88" />
+              </g>
+              <g clip-path="url(#waveClip)">
+                <rect class="gauge-well" x="28" y="28" width="144" height="144" />
+                <!-- Liquid: bottom-aligned fill driven by --fill (0–100%) -->
+                <g id="wave-fill" class="wave-fill">
+                  <rect class="wave-body" x="28" y="100" width="144" height="100" />
+                  <path
+                    class="wave wave-a"
+                    d="M28 100 Q46 88 64 100 T100 100 T136 100 T172 100 V200 H28 Z"
+                  />
+                  <path
+                    class="wave wave-b"
+                    d="M28 104 Q46 116 64 104 T100 104 T136 104 T172 104 V200 H28 Z"
+                  />
+                </g>
+              </g>
+            </svg>
+            <div class="gauge-center">
+              <p class="total-line">
+                <span id="total-value" class="total-value">0</span>
+                <span id="total-unit" class="total-unit">ml</span>
+              </p>
+              <p id="goal-caption" class="goal-caption">of 2000 ml goal</p>
+              <p id="pct-label" class="pct-label">0%</p>
+            </div>
+          </div>
+          <p id="status-chip" class="status-chip" data-state="empty">Ready when you are</p>
+        </section>
+
+        <section class="quick-section" aria-label="Add water">
+          <!-- Featured: full Owala bottle (24 oz) -->
+          <button
+            type="button"
+            id="btn-owala"
+            class="owala-btn"
+            data-drink="owala"
+            aria-label="Add full Owala bottle, 24 ounces"
+          >
+            <span class="owala-btn-mark" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                <path
+                  d="M12 4h8l1 3v2c3 1 5 4 5 8v7a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4v-7c0-4 2-7 5-8V7l1-3z"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                />
+                <path d="M11 14h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+              </svg>
+            </span>
+            <span class="owala-btn-text">
+              <span class="owala-btn-title">Owala</span>
+              <span class="owala-btn-sub">Full bottle · <span data-drink-amount>24 oz</span></span>
+            </span>
+            <span class="owala-btn-plus" aria-hidden="true">+</span>
+          </button>
+
+          <div class="quick-row">
+            <button type="button" class="quick-btn" data-quick="250">
+              <span class="quick-amount">+250</span>
+              <span class="quick-unit">ml</span>
+            </button>
+            <button type="button" class="quick-btn quick-btn-primary" data-quick="500">
+              <span class="quick-amount">+500</span>
+              <span class="quick-unit">ml</span>
+            </button>
+            <button type="button" class="quick-btn" data-quick="750">
+              <span class="quick-amount">+750</span>
+              <span class="quick-unit">ml</span>
+            </button>
+          </div>
+
+          <div class="drinks-block">
+            <p class="drinks-label">Drinks</p>
+            <div id="drinks-grid" class="drinks-grid" role="group" aria-label="Standard drinks">
+              <!-- filled by app.js -->
+            </div>
+          </div>
+
+          <button type="button" id="btn-custom" class="custom-btn">Custom amount</button>
+        </section>
+
+        <section class="week-section" aria-label="Last 7 days">
+          <div class="section-head">
+            <h2>This week</h2>
+          </div>
+          <div id="week-bars" class="week-bars"></div>
+        </section>
+
+        <section class="log-section" aria-label="Today’s log">
+          <div class="section-head">
+            <h2>Today</h2>
+          </div>
+          <p id="log-empty" class="log-empty">No drinks yet. Tap a size above.</p>
+          <ul id="log-list" class="log-list"></ul>
+        </section>
+      </main>
+    </div>
+
+    <!-- Undo bar -->
+    <div id="undo-bar" class="undo-bar" hidden>
+      <span>Entry removed</span>
+      <button type="button" id="undo-btn">Undo</button>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- Backdrop -->
+    <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
+
+    <!-- Custom amount sheet -->
+    <div id="custom-sheet" class="sheet" role="dialog" aria-labelledby="custom-title" hidden>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-header">
+        <h2 id="custom-title">Custom amount</h2>
+        <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <form id="custom-form" class="sheet-body">
+        <label class="field">
+          <span class="field-label">Amount (<span id="custom-unit-label">ml</span>)</span>
+          <input
+            id="custom-amount"
+            class="field-input"
+            type="number"
+            inputmode="decimal"
+            min="1"
+            step="any"
+            placeholder="e.g. 300"
+            required
+            autocomplete="off"
+          />
+        </label>
+        <button type="submit" class="primary-btn">Add water</button>
+      </form>
+    </div>
+
+    <!-- Settings sheet -->
+    <div id="settings-sheet" class="sheet" role="dialog" aria-labelledby="settings-title" hidden>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-header">
+        <h2 id="settings-title">Settings</h2>
+        <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <div class="sheet-body settings-body">
+        <form id="setting-goal-form" class="settings-block">
+          <label class="field">
+            <span class="field-label">Daily goal (<span id="setting-goal-unit">ml</span>)</span>
+            <div class="field-row">
+              <input
+                id="setting-goal"
+                class="field-input"
+                type="number"
+                inputmode="decimal"
+                min="1"
+                step="any"
+                required
+              />
+              <button type="submit" class="secondary-btn">Save</button>
+            </div>
+          </label>
+        </form>
+
+        <fieldset class="settings-block unit-fieldset">
+          <legend class="field-label">Units</legend>
+          <div class="segmented">
+            <label class="segment">
+              <input type="radio" name="unit" value="ml" checked />
+              <span>Millilitres</span>
+            </label>
+            <label class="segment">
+              <input type="radio" name="unit" value="oz" />
+              <span>Fluid ounces</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="settings-block actions-block">
+          <button type="button" id="btn-clear-today" class="ghost-btn">Clear today</button>
+          <button type="button" id="btn-export" class="ghost-btn">Export data</button>
+          <button type="button" id="btn-clear-all" class="danger-btn">Delete all history</button>
+        </div>
+
+        <p class="settings-note">
+          Data stays on this device only. Add to Home Screen from Safari for the full-screen app.
+          Siri Shortcuts can open
+          <code>?add=250</code> to log water by voice — see README.
+        </p>
+      </div>
+    </div>
+
+    <!-- Classic scripts so double-click / file:// works (ES modules do not). -->
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+      // Service workers need http(s) or localhost — skip on file://
+      if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>
