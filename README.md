@@ -28,11 +28,13 @@ All data stays **on your device** (browser `localStorage`). Nothing is uploaded.
 Manual server (optional):
 
 ```bash
-cd "/path/to/iPhone Water tracker app"
+cd ~/grokington/water-tracker
 python3 -m http.server 8080
 ```
 
 Then open [http://localhost:8080](http://localhost:8080).
+
+**Project location on this Mac:** `~/grokington/water-tracker`
 
 > **Note:** Service workers and “Add to Home Screen” as a full offline PWA need `localhost` or **HTTPS** (not `file://`). Logging water works either way.
 
@@ -50,17 +52,26 @@ That home-screen icon is your “app.”
 
 ---
 
-## Deploy to GitHub Pages (recommended free HTTPS)
+## Live site (already deployed)
 
-1. Create a GitHub repository and push this project.
-2. Repo **Settings → Pages → Build and deployment**:
-   - Source: **Deploy from a branch**
-   - Branch: `main` (or `master`), folder: `/ (root)`
-3. After a minute, open  
-   `https://<your-username>.github.io/<repo-name>/`
-4. Use **that URL** for Add to Home Screen and for Shortcuts.
+| | |
+|--|--|
+| **iPhone app URL** | https://binland23.github.io/water-tracker/ |
+| **GitHub repo** | https://github.com/Binland23/water-tracker |
+| **Local folder** | `~/grokington/water-tracker` |
 
-If the site lives under a subpath, relative links in this project already use `./` so they still work.
+GitHub Pages deploys from the `main` branch root. After you change files here:
+
+```bash
+cd ~/grokington/water-tracker
+git add .
+git commit -m "Your message"
+git push origin main
+```
+
+Bump `CACHE_VERSION` in `sw.js` when shipping UI/JS changes so phones pick up the update.
+
+Relative asset paths (`./`) work under the `/water-tracker/` subpath.
 
 ---
 
