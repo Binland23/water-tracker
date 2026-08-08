@@ -97,6 +97,7 @@
     { id: 'coffee', label: 'Coffee', oz: 8, hydration: 0.8 },
     { id: 'soda', label: 'Soda', oz: 12, hydration: 0.75 },
     { id: 'juice', label: 'Juice', oz: 8, hydration: 0.85 },
+    { id: 'smoothie', label: 'Fruit smoothie', oz: 12, hydration: 0.85 },
     { id: 'milk', label: 'Milk', oz: 8, hydration: 0.9 },
     { id: 'sparkling', label: 'Sparkling', oz: 12, hydration: 1 },
     { id: 'sports', label: 'Sports drink', oz: 20, hydration: 0.9 },

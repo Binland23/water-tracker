@@ -25,6 +25,7 @@ Goals track **effective water**, not full poured volume:
 | Water / Owala / Sparkling | 100% |
 | Tea, milk, sports drink | 90% |
 | Juice | 85% |
+| Fruit smoothie | 85% |
 | Coffee | 80% |
 | Soda | 75% |
 
@@ -100,7 +101,7 @@ Replace `BASE` with your real URL, e.g.
 | Goal | URL |
 |------|-----|
 | Full Owala (24 oz) | `BASE?drink=owala` |
-| Coffee / tea / soda… | `BASE?drink=coffee` (also: `tea`, `soda`, `juice`, `milk`, `sparkling`, `sports`) |
+| Coffee / tea / soda… | `BASE?drink=coffee` (also: `tea`, `soda`, `juice`, `smoothie`, `milk`, `sparkling`, `sports`) |
 | Add 250 ml (one glass) | `BASE?add=250` |
 | Add 500 ml | `BASE?add=500` |
 | Add 16 oz | `BASE?add=16&unit=oz` |
