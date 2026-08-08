@@ -63,6 +63,10 @@
     return date.toLocaleDateString(undefined, opts);
   }
 
+  function formatMonthYear(date) {
+    return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  }
+
   function formatTime(ts) {
     return new Date(ts).toLocaleTimeString(undefined, {
       hour: 'numeric',
@@ -82,23 +86,64 @@
   const OWALA_OZ = 24;
   const OWALA_ML = Math.round(ozToMl(OWALA_OZ));
 
+  /**
+   * Drink presets with hydration factors (0–1).
+   * hydration = fraction of volume that counts toward the water goal.
+   * Pure water / sparkling = 1.0; caffeinated & sugary drinks count less.
+   */
   const DRINK_PRESETS = Object.freeze([
-    { id: 'owala', label: 'Owala', oz: OWALA_OZ },
-    { id: 'tea', label: 'Tea', oz: 8 },
-    { id: 'coffee', label: 'Coffee', oz: 8 },
-    { id: 'soda', label: 'Soda', oz: 12 },
-    { id: 'juice', label: 'Juice', oz: 8 },
-    { id: 'milk', label: 'Milk', oz: 8 },
-    { id: 'sparkling', label: 'Sparkling', oz: 12 },
-    { id: 'sports', label: 'Sports drink', oz: 20 },
+    { id: 'owala', label: 'Owala', oz: OWALA_OZ, hydration: 1 },
+    { id: 'tea', label: 'Tea', oz: 8, hydration: 0.9 },
+    { id: 'coffee', label: 'Coffee', oz: 8, hydration: 0.8 },
+    { id: 'soda', label: 'Soda', oz: 12, hydration: 0.75 },
+    { id: 'juice', label: 'Juice', oz: 8, hydration: 0.85 },
+    { id: 'milk', label: 'Milk', oz: 8, hydration: 0.9 },
+    { id: 'sparkling', label: 'Sparkling', oz: 12, hydration: 1 },
+    { id: 'sports', label: 'Sports drink', oz: 20, hydration: 0.9 },
   ]);
 
   function drinkById(id) {
     return DRINK_PRESETS.find((d) => d.id === id) || null;
   }
 
-  function drinkMl(preset) {
+  /** Default quick size when logging a drink from the sheet (fl oz). */
+  const DRINK_QUICK_OZ = 8;
+
+  /** Full drink volume in ml (legacy preset size). */
+  function drinkVolumeMl(preset) {
     return Math.round(ozToMl(preset.oz));
+  }
+
+  /** Effective water for a poured volume + drink hydration factor. */
+  function waterFromVolume(volumeMl, hydration) {
+    const factor = Number.isFinite(hydration) ? clamp(hydration, 0, 1) : 1;
+    return Math.round(Number(volumeMl) * factor);
+  }
+
+  /** Effective water ml for the preset’s default size. */
+  function drinkWaterMl(preset) {
+    return waterFromVolume(drinkVolumeMl(preset), preset.hydration);
+  }
+
+  /** @deprecated use drinkVolumeMl — kept for any external callers */
+  function drinkMl(preset) {
+    return drinkWaterMl(preset);
+  }
+
+  function hydrationPercent(factor) {
+    const f = Number.isFinite(factor) ? clamp(factor, 0, 1) : 1;
+    return Math.round(f * 100);
+  }
+
+  /**
+   * Chip subtitle: hydration note + prompt to choose amount.
+   */
+  function formatDrinkChip(preset, unit) {
+    const pct = hydrationPercent(preset.hydration);
+    if (pct >= 100) {
+      return `100% water · tap for amount`;
+    }
+    return `${pct}% water · tap for amount`;
   }
 
   global.WaterUtils = {
@@ -113,14 +158,21 @@
     parseDayKey,
     addDays,
     formatDayLabel,
+    formatMonthYear,
     formatTime,
     uid,
     clamp,
     QUICK_ADDS_ML,
     OWALA_OZ,
     OWALA_ML,
+    DRINK_QUICK_OZ,
     DRINK_PRESETS,
     drinkById,
     drinkMl,
+    drinkVolumeMl,
+    drinkWaterMl,
+    waterFromVolume,
+    hydrationPercent,
+    formatDrinkChip,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

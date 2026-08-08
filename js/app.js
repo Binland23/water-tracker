@@ -2,23 +2,42 @@
 (function () {
   const {
     DRINK_PRESETS,
+    DRINK_QUICK_OZ,
     clamp,
     dayKey,
     drinkById,
-    drinkMl,
+    drinkWaterMl,
     formatAmount,
     formatAmountWithUnit,
     formatDayLabel,
+    formatDrinkChip,
+    formatMonthYear,
     formatTime,
+    hydrationPercent,
     mlToOz,
+    ozToMl,
+    parseDayKey,
     toMl,
+    waterFromVolume,
   } = window.WaterUtils;
   const storage = window.WaterStorage;
+  const bgPhoto = window.WaterBgPhoto;
 
   let store = storage.load();
   /** @type {{ entry: object, timer: number } | null} */
   let undoState = null;
   let lastGoalReached = false;
+  /** @type {string | null} */
+  let currentBgPhoto = null;
+  /** Drink currently open in the amount sheet */
+  let activeDrinkId = null;
+
+  /** Calendar view state */
+  const calState = {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+    selectedKey: null,
+  };
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -105,35 +124,281 @@
       .replace(/"/g, '&quot;');
   }
 
-  function render() {
-    const unit = store.unit;
-    const goal = store.goalMl;
-    const today = dayKey();
-    const total = storage.totalForDay(store, today);
-    const entries = storage.entriesForDay(store, today);
+  /** Log row HTML for an entry (today list or calendar day detail). */
+  function entryLogHtml(e, unit) {
+    const waterLine = formatAmountWithUnit(e.ml, unit);
+    const hasPartial =
+      typeof e.volumeMl === 'number' &&
+      e.volumeMl > e.ml &&
+      typeof e.hydration === 'number' &&
+      e.hydration < 1;
+
+    let amountHtml;
+    if (e.label) {
+      if (hasPartial) {
+        const vol = formatAmountWithUnit(e.volumeMl, unit);
+        const pct = hydrationPercent(e.hydration);
+        amountHtml = `
+          <span class="log-label">${escapeHtml(e.label)}</span>
+          <span class="log-amount">+${waterLine} water</span>
+          <span class="log-meta">${vol} poured · ${pct}% hydrates</span>`;
+      } else {
+        amountHtml = `
+          <span class="log-label">${escapeHtml(e.label)}</span>
+          <span class="log-amount">+${waterLine}</span>`;
+      }
+    } else {
+      amountHtml = `<span class="log-amount">+${waterLine}</span>`;
+    }
+
+    return `
+      <div class="log-main">
+        ${amountHtml}
+        <span class="log-time">${formatTime(e.ts)}</span>
+      </div>`;
+  }
+
+  function pulseWave() {
+    const wrap = $('.gauge-wrap');
+    if (!wrap) return;
+    wrap.classList.remove('is-splashing');
+    // reflow to restart animation
+    void wrap.offsetWidth;
+    wrap.classList.add('is-splashing');
+    setTimeout(() => wrap.classList.remove('is-splashing'), 700);
+  }
+
+  function renderGauge(total, goal) {
     const pct = goal > 0 ? total / goal : 0;
     const pctDisplay = Math.round(pct * 100);
     const reached = total >= goal;
-
-    $('#date-label').textContent = formatDayLabel(new Date());
+    const visualPct = clamp(pct, 0, 1);
 
     const ring = $('#progress-ring');
     const circumference = 2 * Math.PI * 88;
-    const visualPct = clamp(pct, 0, 1);
     ring.style.strokeDasharray = `${circumference}`;
     ring.style.strokeDashoffset = `${circumference * (1 - visualPct)}`;
     ring.classList.toggle('is-complete', reached);
 
     const wave = $('#wave-fill');
     if (wave) {
-      const lift = (1 - visualPct) * 72;
+      // Wave surface is drawn at y=100 in SVG space.
+      // Clip circle: center (100,100) r=72 → top 28, bottom 172.
+      // Map goal progress 0→1 so the well is empty at 0% and fully full at 100%.
+      const SURFACE_Y = 100;
+      const WELL_TOP = 28;
+      const WELL_BOTTOM = 172;
+      const emptyLift = WELL_BOTTOM - SURFACE_Y + 8; // surface just below well
+      const fullLift = WELL_TOP - SURFACE_Y - 10; // surface just above well (brim full)
+      const lift = emptyLift + (fullLift - emptyLift) * visualPct;
       wave.style.transform = `translateY(${lift}px)`;
+      wave.classList.toggle('is-empty', total === 0);
+      wave.classList.toggle('is-full', reached);
     }
 
+    const wrap = $('.gauge-wrap');
+    if (wrap) {
+      wrap.classList.toggle('is-complete', reached);
+      wrap.style.setProperty('--fill-pct', String(visualPct));
+    }
+
+    const unit = store.unit;
     $('#total-value').textContent = formatAmount(total, unit);
     $('#total-unit').textContent = unit;
     $('#goal-caption').textContent = `of ${formatAmountWithUnit(goal, unit)} goal`;
     $('#pct-label').textContent = `${pctDisplay}%`;
+
+    return { pct, pctDisplay, reached };
+  }
+
+  function renderLogList(listEl, emptyEl, entries, { deletable = true } = {}) {
+    listEl.innerHTML = '';
+    if (entries.length === 0) {
+      if (emptyEl) emptyEl.hidden = false;
+      return;
+    }
+    if (emptyEl) emptyEl.hidden = true;
+    const unit = store.unit;
+    for (const e of entries) {
+      const li = document.createElement('li');
+      li.className = 'log-item';
+      li.dataset.id = e.id;
+      li.innerHTML =
+        entryLogHtml(e, unit) +
+        (deletable
+          ? `<button type="button" class="log-delete" aria-label="Delete entry" data-delete="${e.id}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+            </svg>
+          </button>`
+          : '');
+      listEl.appendChild(li);
+    }
+  }
+
+  function renderWeek() {
+    const unit = store.unit;
+    const goal = store.goalMl;
+    const today = dayKey();
+    const week = storage.weekTotals(store, 7);
+    const maxBar = Math.max(goal, ...week.map((d) => d.total), 1);
+    const weekEl = $('#week-bars');
+    weekEl.innerHTML = '';
+    for (const day of week) {
+      const h = (day.total / maxBar) * 100;
+      const isToday = day.key === today;
+      const done = day.total >= goal && day.total > 0;
+      const col = document.createElement('button');
+      col.type = 'button';
+      col.className =
+        'week-col' + (isToday ? ' is-today' : '') + (done ? ' is-done' : '');
+      col.setAttribute(
+        'aria-label',
+        `${formatDayLabel(day.date)}: ${formatAmountWithUnit(day.total, unit)}`
+      );
+      col.dataset.dayKey = day.key;
+      col.innerHTML = `
+        <div class="week-bar-track" title="${formatAmountWithUnit(day.total, unit)}">
+          <div class="week-bar" style="height:${clamp(h, day.total > 0 ? 6 : 0, 100)}%"></div>
+        </div>
+        <span class="week-label">${formatDayLabel(day.date, { short: true }).slice(0, 2)}</span>
+      `;
+      weekEl.appendChild(col);
+    }
+  }
+
+  function dayFillClass(total, goal) {
+    if (total <= 0) return 'is-empty';
+    if (total >= goal) return 'is-done';
+    if (total >= goal * 0.5) return 'is-half';
+    return 'is-some';
+  }
+
+  function renderCalendar() {
+    const grid = $('#cal-grid');
+    const label = $('#cal-month-label');
+    if (!grid || !label) return;
+
+    const { year, month, selectedKey } = calState;
+    const goal = store.goalMl;
+    const today = dayKey();
+    const { cells } = storage.monthTotals(store, year, month);
+
+    label.textContent = formatMonthYear(new Date(year, month, 1));
+
+    // Disable next if past current month
+    const now = new Date();
+    const nextBtn = $('#cal-next');
+    if (nextBtn) {
+      const isCurrentOrFuture =
+        year > now.getFullYear() ||
+        (year === now.getFullYear() && month >= now.getMonth());
+      nextBtn.disabled = isCurrentOrFuture;
+    }
+
+    grid.innerHTML = '';
+    for (const cell of cells) {
+      if (cell.empty) {
+        const blank = document.createElement('div');
+        blank.className = 'cal-cell is-blank';
+        blank.setAttribute('aria-hidden', 'true');
+        grid.appendChild(blank);
+        continue;
+      }
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `cal-cell ${dayFillClass(cell.total, goal)}`;
+      if (cell.key === today) btn.classList.add('is-today');
+      if (cell.key === selectedKey) btn.classList.add('is-selected');
+      if (cell.key > today) {
+        btn.classList.add('is-future');
+        btn.disabled = true;
+      }
+      btn.dataset.dayKey = cell.key;
+      const pct = goal > 0 ? Math.min(100, Math.round((cell.total / goal) * 100)) : 0;
+      btn.setAttribute(
+        'aria-label',
+        `${formatDayLabel(cell.date)}: ${formatAmountWithUnit(cell.total, store.unit)}${
+          cell.total > 0 ? ` (${pct}% of goal)` : ''
+        }`
+      );
+      btn.innerHTML = `
+        <span class="cal-day-num">${cell.day}</span>
+        <span class="cal-fill" style="--day-pct:${clamp(pct, 0, 100)}"></span>
+      `;
+      grid.appendChild(btn);
+    }
+
+    renderCalDayPanel();
+  }
+
+  function renderCalDayPanel() {
+    const panel = $('#cal-day-panel');
+    const empty = $('#cal-day-empty');
+    const list = $('#cal-day-list');
+    const title = $('#cal-day-title');
+    const summary = $('#cal-day-summary');
+    if (!panel) return;
+
+    const key = calState.selectedKey;
+    if (!key) {
+      // Default to today when opening
+      const today = dayKey();
+      calState.selectedKey = today;
+    }
+    const selected = calState.selectedKey;
+    const date = parseDayKey(selected);
+    const entries = storage.entriesForDay(store, selected);
+    const total = storage.totalForDay(store, selected);
+    const goal = store.goalMl;
+    const unit = store.unit;
+    const pct = goal > 0 ? Math.round((total / goal) * 100) : 0;
+
+    panel.hidden = false;
+    title.textContent = formatDayLabel(date);
+    if (total === 0) {
+      summary.textContent = `0 ${unit} · 0% of ${formatAmountWithUnit(goal, unit)} goal`;
+    } else if (total >= goal) {
+      summary.textContent = `${formatAmountWithUnit(total, unit)} · Goal met (${pct}%)`;
+    } else {
+      summary.textContent = `${formatAmountWithUnit(total, unit)} · ${pct}% of goal`;
+    }
+
+    renderLogList(list, empty, entries, { deletable: selected === dayKey() });
+  }
+
+  function selectCalDay(key) {
+    calState.selectedKey = key;
+    renderCalendar();
+  }
+
+  function openCalendar(dayKeyToSelect) {
+    const now = new Date();
+    if (dayKeyToSelect) {
+      const d = parseDayKey(dayKeyToSelect);
+      calState.year = d.getFullYear();
+      calState.month = d.getMonth();
+      calState.selectedKey = dayKeyToSelect;
+    } else if (!calState.selectedKey) {
+      calState.year = now.getFullYear();
+      calState.month = now.getMonth();
+      calState.selectedKey = dayKey();
+    }
+    renderCalendar();
+    openSheet('#calendar-sheet');
+  }
+
+  function render() {
+    const unit = store.unit;
+    const goal = store.goalMl;
+    const today = dayKey();
+    const total = storage.totalForDay(store, today);
+    const entries = storage.entriesForDay(store, today);
+
+    $('#date-label').textContent = formatDayLabel(new Date());
+
+    const { pct, reached } = renderGauge(total, goal);
 
     const status = $('#status-chip');
     if (reached) {
@@ -144,7 +409,7 @@
       status.dataset.state = 'empty';
     } else {
       const left = goal - total;
-      status.textContent = `${formatAmountWithUnit(left, unit)} to go`;
+      status.textContent = `${formatAmountWithUnit(left, unit)} water to go`;
       status.dataset.state = 'progress';
     }
 
@@ -160,72 +425,48 @@
       const amountEl = btn.querySelector('.quick-amount');
       const unitEl = btn.querySelector('.quick-unit');
       if (amountEl) amountEl.textContent = `+${label}`;
-      if (unitEl) unitEl.textContent = unit;
+      if (unitEl) unitEl.textContent = `${unit} water`;
     });
 
     const owala = drinkById('owala');
     if (owala) {
-      const amt = formatAmountWithUnit(drinkMl(owala), unit);
+      const amt = formatAmountWithUnit(drinkWaterMl(owala), unit);
       const sub = $('#btn-owala [data-drink-amount]');
-      if (sub) sub.textContent = amt;
+      if (sub) sub.textContent = `${amt} water`;
       const btn = $('#btn-owala');
-      if (btn) btn.setAttribute('aria-label', `Add full Owala bottle, ${amt}`);
+      if (btn) {
+        btn.setAttribute('aria-label', `Add full Owala bottle, ${amt} water`);
+      }
     }
 
     $$('[data-drink]:not(#btn-owala)').forEach((btn) => {
       const preset = drinkById(btn.dataset.drink);
       if (!preset) return;
       const amountEl = btn.querySelector('[data-drink-amount]');
-      if (amountEl) amountEl.textContent = formatAmountWithUnit(drinkMl(preset), unit);
+      if (amountEl) amountEl.textContent = formatDrinkChip(preset, unit);
+      const pctEl = btn.querySelector('[data-drink-pct]');
+      if (pctEl) {
+        const pctH = hydrationPercent(preset.hydration);
+        pctEl.textContent = pctH >= 100 ? '100% water' : `${pctH}% water`;
+        pctEl.hidden = false;
+      }
+      btn.setAttribute(
+        'aria-label',
+        `${preset.label}: choose amount (${hydrationPercent(preset.hydration)}% counts as water)`
+      );
     });
 
-    const list = $('#log-list');
-    const empty = $('#log-empty');
-    list.innerHTML = '';
-    if (entries.length === 0) {
-      empty.hidden = false;
-    } else {
-      empty.hidden = true;
-      for (const e of entries) {
-        const li = document.createElement('li');
-        li.className = 'log-item';
-        li.dataset.id = e.id;
-        const title = e.label
-          ? `<span class="log-label">${escapeHtml(e.label)}</span>
-             <span class="log-amount">${formatAmountWithUnit(e.ml, unit)}</span>`
-          : `<span class="log-amount">${formatAmountWithUnit(e.ml, unit)}</span>`;
-        li.innerHTML = `
-          <div class="log-main">
-            ${title}
-            <span class="log-time">${formatTime(e.ts)}</span>
-          </div>
-          <button type="button" class="log-delete" aria-label="Delete entry" data-delete="${e.id}">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
-            </svg>
-          </button>
-        `;
-        list.appendChild(li);
-      }
+    // Keep drink sheet labels in sync if open
+    if (activeDrinkId && $('#drink-sheet')?.classList.contains('is-open')) {
+      refreshDrinkSheetUi();
     }
 
-    const week = storage.weekTotals(store, 7);
-    const maxBar = Math.max(goal, ...week.map((d) => d.total), 1);
-    const weekEl = $('#week-bars');
-    weekEl.innerHTML = '';
-    for (const day of week) {
-      const h = (day.total / maxBar) * 100;
-      const isToday = day.key === today;
-      const done = day.total >= goal && day.total > 0;
-      const col = document.createElement('div');
-      col.className = 'week-col' + (isToday ? ' is-today' : '') + (done ? ' is-done' : '');
-      col.innerHTML = `
-        <div class="week-bar-track" title="${formatAmountWithUnit(day.total, unit)}">
-          <div class="week-bar" style="height:${clamp(h, day.total > 0 ? 6 : 0, 100)}%"></div>
-        </div>
-        <span class="week-label">${formatDayLabel(day.date, { short: true }).slice(0, 2)}</span>
-      `;
-      weekEl.appendChild(col);
+    renderLogList($('#log-list'), $('#log-empty'), entries, { deletable: true });
+    renderWeek();
+
+    // Keep calendar in sync if open
+    if ($('#calendar-sheet')?.classList.contains('is-open')) {
+      renderCalendar();
     }
 
     const goalInput = $('#setting-goal');
@@ -238,22 +479,175 @@
     $$('input[name="unit"]').forEach((r) => {
       r.checked = r.value === unit;
     });
+
+    updateBgPhotoUi();
   }
 
-  function addWater(ml, { label } = {}) {
-    if (!ml || ml <= 0) return;
-    const entry = storage.addEntry(store, ml, { label });
+  function updateBgPhotoUi() {
+    const preview = $('#bg-photo-preview');
+    const clearBtn = $('#btn-bg-photo-clear');
+    const dimField = $('#bg-dim-field');
+    const dimRange = $('#bg-dim-range');
+    const has = Boolean(currentBgPhoto);
+
+    if (preview) {
+      if (has) {
+        preview.style.backgroundImage = `url("${currentBgPhoto}")`;
+        preview.dataset.empty = '0';
+        preview.setAttribute('aria-label', 'Current background photo');
+      } else {
+        preview.style.backgroundImage = '';
+        preview.dataset.empty = '1';
+        preview.setAttribute('aria-label', 'No background photo');
+      }
+    }
+    if (clearBtn) clearBtn.hidden = !has;
+    if (dimField) dimField.hidden = !has;
+    if (dimRange && bgPhoto) {
+      dimRange.value = String(Math.round(bgPhoto.getDim() * 100));
+    }
+  }
+
+  async function handleBgPhotoFile(file) {
+    if (!bgPhoto || !file) return;
+    try {
+      showToast('Preparing photo…', { duration: 1600 });
+      const dataUrl = await bgPhoto.compressPhoto(file);
+      await bgPhoto.savePhoto(dataUrl);
+      currentBgPhoto = dataUrl;
+      bgPhoto.applyToDom(dataUrl, bgPhoto.getDim());
+      updateBgPhotoUi();
+      haptic(12);
+      showToast('Background photo set');
+    } catch (err) {
+      console.error(err);
+      const msg =
+        err && err.message
+          ? err.message
+          : 'Could not use that photo. Try another from Photos.';
+      showToast(msg, { duration: 3200 });
+    }
+  }
+
+  async function clearBgPhoto() {
+    if (!bgPhoto) return;
+    await bgPhoto.clearPhoto();
+    currentBgPhoto = null;
+    bgPhoto.applyToDom(null);
+    updateBgPhotoUi();
+    haptic(8);
+    showToast('Background photo removed');
+  }
+
+  /**
+   * @param {number} waterMl Effective water toward goal
+   * @param {{ label?: string, volumeMl?: number, hydration?: number }} opts
+   */
+  function addWater(waterMl, opts = {}) {
+    if (!waterMl || waterMl <= 0) return;
+    const entry = storage.addEntry(store, waterMl, opts);
     haptic(12);
+    pulseWave();
     render();
-    const amount = formatAmountWithUnit(entry.ml, store.unit);
-    showToast(entry.label ? `+${amount} · ${entry.label}` : `+${amount}`);
+
+    const water = formatAmountWithUnit(entry.ml, store.unit);
+    if (entry.label && entry.volumeMl && entry.hydration && entry.hydration < 1) {
+      const vol = formatAmountWithUnit(entry.volumeMl, store.unit);
+      const pct = hydrationPercent(entry.hydration);
+      showToast(`+${water} water · ${entry.label} (${vol}, ${pct}%)`);
+    } else if (entry.label) {
+      showToast(`+${water} · ${entry.label}`);
+    } else {
+      showToast(`+${water} water`);
+    }
     return entry;
   }
 
+  /** Log a drink with an explicit poured volume (hydration applied). */
+  function addDrinkVolume(preset, volumeMl) {
+    if (!preset || !volumeMl || volumeMl <= 0) return;
+    const hydration = Number.isFinite(preset.hydration) ? preset.hydration : 1;
+    const waterMl = waterFromVolume(volumeMl, hydration);
+    return addWater(waterMl, {
+      label: preset.label,
+      volumeMl: Math.round(volumeMl),
+      hydration: hydration < 1 ? hydration : undefined,
+    });
+  }
+
+  /** One-tap full Owala (still immediate). */
   function addDrink(drinkId) {
     const preset = drinkById(drinkId);
     if (!preset) return;
-    return addWater(drinkMl(preset), { label: preset.label });
+    if (drinkId === 'owala') {
+      return addDrinkVolume(preset, Math.round(ozToMl(preset.oz)));
+    }
+    openDrinkSheet(drinkId);
+  }
+
+  function openDrinkSheet(drinkId) {
+    const preset = drinkById(drinkId);
+    if (!preset || preset.id === 'owala') return;
+    activeDrinkId = drinkId;
+    refreshDrinkSheetUi();
+    const input = $('#drink-custom-amount');
+    if (input) input.value = '';
+    openSheet('#drink-sheet');
+    // Don't auto-focus on iOS immediately (avoids keyboard over quick button)
+  }
+
+  function refreshDrinkSheetUi() {
+    const preset = drinkById(activeDrinkId);
+    if (!preset) return;
+    const unit = store.unit;
+    const pct = hydrationPercent(preset.hydration);
+    const title = $('#drink-sheet-title');
+    const hint = $('#drink-sheet-hint');
+    const quickWater = $('#drink-quick-water');
+    const unitLabel = $('#drink-custom-unit');
+    const preview = $('#drink-custom-preview');
+
+    if (title) title.textContent = preset.label;
+    if (hint) {
+      hint.textContent =
+        pct >= 100
+          ? 'Counts fully as water toward your goal.'
+          : `Only ${pct}% of what you pour counts as water toward your goal.`;
+    }
+
+    const quickVolMl = ozToMl(DRINK_QUICK_OZ);
+    const quickWaterMl = waterFromVolume(quickVolMl, preset.hydration);
+    if (quickWater) {
+      quickWater.textContent =
+        pct >= 100
+          ? `${formatAmountWithUnit(quickWaterMl, unit)} water`
+          : `~${formatAmountWithUnit(quickWaterMl, unit)} water · ${pct}%`;
+    }
+
+    if (unitLabel) unitLabel.textContent = unit;
+    updateDrinkCustomPreview();
+    if (preview && !($('#drink-custom-amount')?.value)) {
+      preview.textContent = `Enter an amount in ${unit}.`;
+    }
+  }
+
+  function updateDrinkCustomPreview() {
+    const preset = drinkById(activeDrinkId);
+    const preview = $('#drink-custom-preview');
+    const raw = $('#drink-custom-amount')?.value;
+    if (!preset || !preview) return;
+    const volumeMl = toMl(raw, store.unit);
+    if (!volumeMl) {
+      preview.textContent = `Enter an amount in ${store.unit}.`;
+      return;
+    }
+    const pct = hydrationPercent(preset.hydration);
+    const waterMl = waterFromVolume(volumeMl, preset.hydration);
+    if (pct >= 100) {
+      preview.textContent = `Adds ${formatAmountWithUnit(waterMl, store.unit)} water.`;
+    } else {
+      preview.textContent = `Adds ~${formatAmountWithUnit(waterMl, store.unit)} water (${pct}% of ${formatAmountWithUnit(volumeMl, store.unit)}).`;
+    }
   }
 
   function buildDrinksGrid() {
@@ -261,13 +655,17 @@
     if (!grid || grid.dataset.built === '1') return;
     const drinks = DRINK_PRESETS.filter((d) => d.id !== 'owala');
     grid.innerHTML = drinks
-      .map(
-        (d) => `
+      .map((d) => {
+        const pct = hydrationPercent(d.hydration);
+        return `
       <button type="button" class="drink-chip" data-drink="${d.id}">
-        <span class="drink-chip-name">${escapeHtml(d.label)}</span>
+        <span class="drink-chip-top">
+          <span class="drink-chip-name">${escapeHtml(d.label)}</span>
+          <span class="drink-chip-pct" data-drink-pct>${pct}% water</span>
+        </span>
         <span class="drink-chip-amt" data-drink-amount></span>
-      </button>`
-      )
+      </button>`;
+      })
       .join('');
     grid.dataset.built = '1';
   }
@@ -281,7 +679,6 @@
   }
 
   function handleDeepLink() {
-    // file:// URLs often lack usable search; still safe to run
     let params;
     try {
       params = new URLSearchParams(window.location.search);
@@ -309,7 +706,13 @@
 
     const drinkId = params.get('drink');
     if (drinkId && drinkById(drinkId)) {
-      addDrink(drinkId);
+      // Siri / deep links: Owala = full bottle; other drinks = quick 8 oz
+      if (drinkId === 'owala') {
+        addDrink('owala');
+      } else {
+        const preset = drinkById(drinkId);
+        addDrinkVolume(preset, ozToMl(DRINK_QUICK_OZ));
+      }
       changed = true;
     }
 
@@ -322,6 +725,11 @@
         addWater(ml, { label: label || undefined });
         changed = true;
       }
+    }
+
+    if (params.get('open') === 'calendar') {
+      openCalendar();
+      changed = true;
     }
 
     if (
@@ -359,9 +767,33 @@
       drinksGrid.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-drink]');
         if (!btn) return;
-        addDrink(btn.dataset.drink);
+        openDrinkSheet(btn.dataset.drink);
       });
     }
+
+    $('#drink-quick-8oz')?.addEventListener('click', () => {
+      const preset = drinkById(activeDrinkId);
+      if (!preset) return;
+      closeSheets();
+      activeDrinkId = null;
+      addDrinkVolume(preset, ozToMl(DRINK_QUICK_OZ));
+    });
+
+    $('#drink-custom-amount')?.addEventListener('input', updateDrinkCustomPreview);
+
+    $('#drink-custom-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const preset = drinkById(activeDrinkId);
+      if (!preset) return;
+      const volumeMl = toMl($('#drink-custom-amount').value, store.unit);
+      if (!volumeMl) {
+        showToast('Enter a valid amount');
+        return;
+      }
+      closeSheets();
+      activeDrinkId = null;
+      addDrinkVolume(preset, volumeMl);
+    });
 
     $('#btn-custom').addEventListener('click', () => {
       const input = $('#custom-amount');
@@ -385,6 +817,73 @@
     $('#btn-settings').addEventListener('click', () => {
       render();
       openSheet('#settings-sheet');
+    });
+
+    // Background photo — iOS requires a direct user gesture to open the picker
+    const bgInput = $('#bg-photo-input');
+    const bgChoose = $('#btn-bg-photo');
+    if (bgChoose && bgInput) {
+      bgChoose.addEventListener('click', () => {
+        // Reset so re-selecting the same photo still fires change on iOS
+        bgInput.value = '';
+        bgInput.click();
+      });
+      bgInput.addEventListener('change', () => {
+        const file = bgInput.files && bgInput.files[0];
+        if (file) handleBgPhotoFile(file);
+      });
+    }
+    $('#btn-bg-photo-clear')?.addEventListener('click', () => {
+      if (!currentBgPhoto) return;
+      if (!confirm('Remove your background photo?')) return;
+      clearBgPhoto();
+    });
+    $('#bg-dim-range')?.addEventListener('input', (e) => {
+      if (!bgPhoto) return;
+      const dim = Number(e.target.value) / 100;
+      bgPhoto.setDim(dim);
+      bgPhoto.applyToDom(currentBgPhoto, dim);
+    });
+
+    const openCal = () => openCalendar();
+    $('#btn-calendar')?.addEventListener('click', openCal);
+    $('#btn-open-calendar')?.addEventListener('click', openCal);
+
+    $('#cal-prev')?.addEventListener('click', () => {
+      calState.month -= 1;
+      if (calState.month < 0) {
+        calState.month = 11;
+        calState.year -= 1;
+      }
+      renderCalendar();
+    });
+
+    $('#cal-next')?.addEventListener('click', () => {
+      calState.month += 1;
+      if (calState.month > 11) {
+        calState.month = 0;
+        calState.year += 1;
+      }
+      renderCalendar();
+    });
+
+    $('#cal-grid')?.addEventListener('click', (e) => {
+      const cell = e.target.closest('.cal-cell[data-day-key]');
+      if (!cell || cell.disabled) return;
+      selectCalDay(cell.dataset.dayKey);
+    });
+
+    $('#week-bars')?.addEventListener('click', (e) => {
+      const col = e.target.closest('[data-day-key]');
+      if (!col) return;
+      openCalendar(col.dataset.dayKey);
+    });
+
+    // Calendar day list: only today entries are deletable
+    $('#cal-day-list')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-delete]');
+      if (!btn) return;
+      deleteEntry(btn.dataset.delete);
     });
 
     $('#sheet-backdrop').addEventListener('click', closeSheets);
@@ -475,18 +974,35 @@
     }, 60_000);
   }
 
-  function init() {
+  async function init() {
     if (!window.WaterUtils || !window.WaterStorage) {
       console.error('Water Tracker: scripts failed to load. Open index.html from this folder.');
       return;
     }
     bind();
     lastGoalReached = storage.totalForDay(store) >= store.goalMl && store.goalMl > 0;
+
+    if (bgPhoto) {
+      try {
+        currentBgPhoto = await bgPhoto.initFromStorage();
+      } catch (err) {
+        console.warn('Background photo unavailable', err);
+        currentBgPhoto = null;
+      }
+    }
+
     render();
     handleDeepLink();
-    window.addEventListener('pageshow', (e) => {
+    window.addEventListener('pageshow', async (e) => {
       if (e.persisted) {
         store = storage.load();
+        if (bgPhoto) {
+          try {
+            currentBgPhoto = await bgPhoto.initFromStorage();
+          } catch {
+            /* ignore */
+          }
+        }
         handleDeepLink();
         render();
       }

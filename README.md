@@ -4,16 +4,29 @@ A calm, offline-first **water consumption app** for iPhone. It is a Progressive 
 
 ## Features
 
-- Daily goal progress (ring + liquid fill)
-- **Owala** one-tap full bottle (24 oz)
-- Standard drinks: tea, coffee, soda, juice, milk, sparkling, sports drink
-- Quick add: 250 / 500 / 750 ml (or oz equivalents)
+- Daily goal progress (ring + animated water simulation)
+- **Owala** one-tap full bottle (24 oz, 100% water)
+- Standard drinks with **hydration factors** (only part of coffee/soda/etc. counts as water)
+- Quick add: 250 / 500 / 750 ml pure water (or oz equivalents)
 - Custom amounts, unit toggle (ml ↔ fl oz)
 - Today’s log with delete + undo
-- 7-day week bars
-- Settings: goal, units, export JSON, clear data
+- 7-day week bars + **full month calendar** (tap a day for details)
+- **Custom background photo** from the iPhone Photos library (stored on-device)
+- Settings: goal, units, background photo, export JSON, clear data
 - Works **offline** after the first visit
 - **Siri-ready** URL hooks (`?add=250`, etc.)
+
+### Hydration factors
+
+Goals track **effective water**, not full poured volume:
+
+| Drink | Counts as water |
+|-------|-----------------|
+| Water / Owala / Sparkling | 100% |
+| Tea, milk, sports drink | 90% |
+| Juice | 85% |
+| Coffee | 80% |
+| Soda | 75% |
 
 All data stays **on your device** (browser `localStorage`). Nothing is uploaded.
 
