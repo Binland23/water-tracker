@@ -42,11 +42,89 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-  function haptic(ms = 10) {
+  /**
+   * Haptic feedback for taps and milestones.
+   *
+   * - Android / Chromium: Vibration API (`navigator.vibrate`)
+   * - iPhone Safari / home-screen PWA (iOS 18+): light Taptic via an
+   *   invisible `<input type="checkbox" switch>` — WebKit plays the
+   *   system switch haptic when its label is activated. There is no
+   *   public Web API for custom Taptic patterns on iOS.
+   *
+   * Styles: 'light' | 'medium' | 'success' | 'warning'
+   * (numbers still accepted as a short vibration duration in ms)
+   */
+  /** @type {HTMLElement | null} */
+  let iosHapticHost = null;
+
+  function ensureIosHapticHost() {
+    if (iosHapticHost && document.body.contains(iosHapticHost)) return iosHapticHost;
+    const host = document.createElement('div');
+    host.id = 'ios-haptic-host';
+    host.setAttribute('aria-hidden', 'true');
+    // Off-screen (not display:none) so WebKit still fires the switch haptic.
+    host.style.cssText =
+      'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;z-index:-1;';
+    const id = 'ios-haptic-switch';
+    host.innerHTML = `<input type="checkbox" id="${id}" switch tabindex="-1" /><label for="${id}"></label>`;
+    document.body.appendChild(host);
+    iosHapticHost = host;
+    return host;
+  }
+
+  /** @param {number} times */
+  function iosSwitchHaptic(times = 1) {
+    const host = ensureIosHapticHost();
+    const label = host.querySelector('label');
+    if (!label) return;
+    let n = 0;
+    const fire = () => {
+      try {
+        label.click();
+      } catch {
+        /* ignore */
+      }
+      n += 1;
+      if (n < times) setTimeout(fire, 70);
+    };
+    fire();
+  }
+
+  function isIosLike() {
+    // iPhone / iPad / iPod, plus iPadOS desktop UA with touch
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+  }
+
+  /**
+   * @param {'light' | 'medium' | 'success' | 'warning' | number} [style='light']
+   */
+  function haptic(style = 'light') {
     try {
-      if (navigator.vibrate) navigator.vibrate(ms);
+      const patterns = {
+        light: 10,
+        medium: 16,
+        success: [12, 45, 20],
+        warning: 28,
+      };
+      const isNamed = typeof style === 'string' && style in patterns;
+      const pattern = isNamed ? patterns[style] : Number(style) || 10;
+      const iosTimes = style === 'success' ? 2 : 1;
+
+      // iPhone / iPad: Vibration API is not available; use system switch Taptic (iOS 18+)
+      if (isIosLike()) {
+        iosSwitchHaptic(iosTimes);
+        return;
+      }
+
+      // Android / other mobile browsers
+      if (typeof navigator.vibrate === 'function') {
+        navigator.vibrate(pattern);
+      }
     } catch {
-      /* ignore */
+      /* ignore — haptics are best-effort */
     }
   }
 
@@ -99,6 +177,7 @@
       backdrop.classList.add('is-open');
     });
     document.body.classList.add('sheet-open');
+    haptic('light');
   }
 
   function closeSheets() {
@@ -369,7 +448,9 @@
   }
 
   function selectCalDay(key) {
+    if (calState.selectedKey === key) return;
     calState.selectedKey = key;
+    haptic('light');
     renderCalendar();
   }
 
@@ -414,7 +495,7 @@
     }
 
     if (reached && !lastGoalReached && total > 0) {
-      haptic(20);
+      haptic('success');
       showToast('Goal reached — nice work');
     }
     lastGoalReached = reached;
@@ -517,7 +598,7 @@
       currentBgPhoto = dataUrl;
       bgPhoto.applyToDom(dataUrl, bgPhoto.getDim());
       updateBgPhotoUi();
-      haptic(12);
+      haptic('medium');
       showToast('Background photo set');
     } catch (err) {
       console.error(err);
@@ -535,7 +616,7 @@
     currentBgPhoto = null;
     bgPhoto.applyToDom(null);
     updateBgPhotoUi();
-    haptic(8);
+    haptic('light');
     showToast('Background photo removed');
   }
 
@@ -546,7 +627,7 @@
   function addWater(waterMl, opts = {}) {
     if (!waterMl || waterMl <= 0) return;
     const entry = storage.addEntry(store, waterMl, opts);
-    haptic(12);
+    haptic('medium');
     pulseWave();
     render();
 
@@ -673,7 +754,7 @@
   function deleteEntry(id) {
     const removed = storage.removeEntry(store, id);
     if (!removed) return;
-    haptic(8);
+    haptic('warning');
     render();
     setUndo(removed);
   }
@@ -899,7 +980,7 @@
       if (!undoState?.entry) return;
       storage.restoreEntry(store, undoState.entry);
       dismissUndo();
-      haptic(10);
+      haptic('light');
       render();
       showToast('Entry restored');
     });
@@ -908,6 +989,7 @@
       r.addEventListener('change', () => {
         if (r.checked) {
           storage.setUnit(store, r.value);
+          haptic('light');
           render();
         }
       });
@@ -921,6 +1003,7 @@
         return;
       }
       storage.setGoal(store, ml);
+      haptic('medium');
       render();
       showToast('Goal updated');
     });
@@ -929,6 +1012,7 @@
       if (!confirm('Clear all entries for today?')) return;
       storage.clearToday(store);
       lastGoalReached = false;
+      haptic('warning');
       render();
       showToast('Today cleared');
     });
@@ -957,6 +1041,7 @@
       if (!confirm('Delete ALL water history? This cannot be undone.')) return;
       storage.clearAll(store);
       lastGoalReached = false;
+      haptic('warning');
       render();
       showToast('All data cleared');
     });
