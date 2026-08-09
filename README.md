@@ -6,7 +6,7 @@ A calm, offline-first **water consumption app** for iPhone. It is a Progressive 
 
 - Daily goal progress (ring + animated water simulation)
 - **Owala** one-tap full bottle (24 oz, 100% water)
-- **Electrolytes** — log pour + stick packs (water counts 1:1; lightning charge FX)
+- **ELECTROLYTES** — log pour + stick packs (water counts 1:1; lightning charge FX)
 - Standard drinks with **hydration factors** (only part of coffee/soda/etc. counts as water)
 - Quick add: 250 / 500 / 750 ml pure water (or oz equivalents)
 - Custom amounts, unit toggle (ml ↔ fl oz)
@@ -29,14 +29,14 @@ Goals track **effective water**, not full poured volume:
 | Fruit smoothie | 85% |
 | Coffee | 80% |
 | Soda | 75% |
-| **Electrolytes** mix | **100%** of poured volume (same as water) + stick tag |
+| **ELECTROLYTES** mix | **100%** of poured volume (same as water) + stick tag |
 
-### Electrolytes
+### ELECTROLYTES
 
-Tap **Electrolytes**, enter how much you poured (default 16 oz), and how many stick packs you mixed in.
+Tap **ELECTROLYTES**, enter how much you poured (default 16 oz), and how many stick packs you mixed in.
 
 - **Water toward goal** = the amount you poured (1:1). Sticks are not extra fluid.
-- **Sticks** are logged as metadata (e.g. “1 stick · electrolytes”).
+- **Sticks** are logged as metadata (e.g. “1 stick · ELECTROLYTES”).
 - Logging plays a short **lightning / charge** animation and marks the day as charged.
 
 All data stays **on your device** (browser `localStorage`). Nothing is uploaded.
@@ -111,8 +111,8 @@ Replace `BASE` with your real URL, e.g.
 | Goal | URL |
 |------|-----|
 | Full Owala (24 oz) | `BASE?drink=owala` |
-| Electrolytes (16 oz, 1 stick) | `BASE?drink=electrolytes` |
-| Electrolytes custom | `BASE?electrolytes=2&add=20&unit=oz` (2 sticks in 20 oz) |
+| ELECTROLYTES (16 oz, 1 stick) | `BASE?drink=electrolytes` |
+| ELECTROLYTES custom | `BASE?electrolytes=2&add=20&unit=oz` (2 sticks in 20 oz) |
 | Coffee / tea / soda… | `BASE?drink=coffee` (also: `tea`, `soda`, `juice`, `smoothie`, `milk`, `sparkling`, `sports`) |
 | Add 250 ml (one glass) | `BASE?add=250` |
 | Add 500 ml | `BASE?add=500` |

@@ -229,7 +229,7 @@
             ${escapeHtml(e.label || ELECTROLYTES.label)}
           </span>
           <span class="log-amount log-amount-ely">+${waterLine}</span>
-          <span class="log-meta log-meta-ely">${stickLabel} · electrolytes</span>`;
+          <span class="log-meta log-meta-ely">${stickLabel} · ELECTROLYTES</span>`;
     } else if (e.label) {
       if (hasPartial) {
         const vol = formatAmountWithUnit(e.volumeMl, unit);
@@ -547,8 +547,8 @@
     if (reached) {
       status.textContent = elyToday
         ? pct > 1.05
-          ? 'Over goal · electrolytes charged'
-          : 'Goal reached · electrolytes charged'
+          ? 'Over goal · ELECTROLYTES charged'
+          : 'Goal reached · ELECTROLYTES charged'
         : pct > 1.05
           ? 'Over goal'
           : 'Goal reached';

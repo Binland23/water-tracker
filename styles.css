@@ -708,11 +708,12 @@ button:active {
 
 .electrolytes-btn-title {
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.06em;
   line-height: 1.15;
   color: #faf5ff;
+  text-transform: uppercase;
 }
 
 .electrolytes-btn-sub {

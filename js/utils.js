@@ -156,7 +156,7 @@
    */
   const ELECTROLYTES = Object.freeze({
     id: 'electrolytes',
-    label: 'Electrolytes',
+    label: 'ELECTROLYTES',
     /** Recommended mix size (fl oz) for one stick. */
     defaultOz: 16,
     /** Default stick packs when opening the sheet. */
