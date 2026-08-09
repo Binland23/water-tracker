@@ -32,6 +32,17 @@
     if (typeof e.hydration === 'number' && e.hydration > 0 && e.hydration < 1) {
       entry.hydration = clamp(e.hydration, 0, 1);
     }
+    // Electrolyte stick packs (1–4) — tag only; does not change ml
+    // Accept legacy `liquidIv` key from earlier builds
+    const sticksRaw =
+      typeof e.electrolytes === 'number'
+        ? e.electrolytes
+        : typeof e.liquidIv === 'number'
+          ? e.liquidIv
+          : null;
+    if (sticksRaw != null && sticksRaw >= 1) {
+      entry.electrolytes = clamp(Math.round(sticksRaw), 1, 4);
+    }
     return entry;
   }
 
@@ -60,7 +71,7 @@
 
   /**
    * @param {number} ml Effective water ml (counts toward goal)
-   * @param {{ label?: string, volumeMl?: number, hydration?: number }} opts
+   * @param {{ label?: string, volumeMl?: number, hydration?: number, electrolytes?: number }} opts
    */
   function addEntry(store, ml, opts = {}) {
     const entry = { id: uid(), ml: Math.round(ml), ts: Date.now() };
@@ -72,6 +83,10 @@
     }
     if (typeof opts.hydration === 'number' && opts.hydration > 0 && opts.hydration < 1) {
       entry.hydration = clamp(opts.hydration, 0, 1);
+    }
+    // Stick packs mixed in — cosmetic / log metadata only
+    if (typeof opts.electrolytes === 'number' && opts.electrolytes >= 1) {
+      entry.electrolytes = clamp(Math.round(opts.electrolytes), 1, 4);
     }
     store.entries.push(entry);
     save(store);

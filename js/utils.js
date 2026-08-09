@@ -147,6 +147,44 @@
     return `${pct}% water · tap for amount`;
   }
 
+  /**
+   * Electrolytes mixed into water (e.g. stick packs).
+   *
+   * The poured drink still counts as plain water volume toward the goal —
+   * electrolytes are not extra fluid. We only tag the entry (sticks + FX)
+   * so the log can show you charged electrolytes, without inventing ounces.
+   */
+  const ELECTROLYTES = Object.freeze({
+    id: 'electrolytes',
+    label: 'Electrolytes',
+    /** Recommended mix size (fl oz) for one stick. */
+    defaultOz: 16,
+    /** Default stick packs when opening the sheet. */
+    defaultSticks: 1,
+    minSticks: 1,
+    maxSticks: 4,
+  });
+
+  /** Clamp stick packs to the allowed range. */
+  function electrolytesSticksClamp(sticks) {
+    return clamp(
+      Math.round(Number(sticks) || 1),
+      ELECTROLYTES.minSticks,
+      ELECTROLYTES.maxSticks
+    );
+  }
+
+  /**
+   * Water credit for an electrolytes mix = poured volume only (100% water).
+   * Sticks are recorded for the log / animation, not multiplied into ml.
+   * @param {number} volumeMl Poured drink volume
+   */
+  function electrolytesWaterMl(volumeMl) {
+    const vol = Math.max(0, Number(volumeMl) || 0);
+    if (vol <= 0) return 0;
+    return Math.round(vol);
+  }
+
   global.WaterUtils = {
     ML_PER_OZ,
     mlToOz,
@@ -175,5 +213,8 @@
     waterFromVolume,
     hydrationPercent,
     formatDrinkChip,
+    ELECTROLYTES,
+    electrolytesSticksClamp,
+    electrolytesWaterMl,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -3,6 +3,7 @@
   const {
     DRINK_PRESETS,
     DRINK_QUICK_OZ,
+    ELECTROLYTES,
     clamp,
     dayKey,
     drinkById,
@@ -14,6 +15,8 @@
     formatMonthYear,
     formatTime,
     hydrationPercent,
+    electrolytesSticksClamp,
+    electrolytesWaterMl,
     mlToOz,
     ozToMl,
     parseDayKey,
@@ -31,6 +34,8 @@
   let currentBgPhoto = null;
   /** Drink currently open in the amount sheet */
   let activeDrinkId = null;
+  /** Stick packs selected in the Electrolytes sheet */
+  let electrolytesSticks = ELECTROLYTES.defaultSticks;
 
   /** Calendar view state */
   const calState = {
@@ -206,14 +211,26 @@
   /** Log row HTML for an entry (today list or calendar day detail). */
   function entryLogHtml(e, unit) {
     const waterLine = formatAmountWithUnit(e.ml, unit);
+    const isElectrolytes = typeof e.electrolytes === 'number' && e.electrolytes >= 1;
     const hasPartial =
+      !isElectrolytes &&
       typeof e.volumeMl === 'number' &&
       e.volumeMl > e.ml &&
       typeof e.hydration === 'number' &&
       e.hydration < 1;
 
     let amountHtml;
-    if (e.label) {
+    if (isElectrolytes) {
+      const sticks = e.electrolytes;
+      const stickLabel = sticks === 1 ? '1 stick' : `${sticks} sticks`;
+      amountHtml = `
+          <span class="log-label log-label-ely">
+            <span class="log-ely-bolt" aria-hidden="true">⚡</span>
+            ${escapeHtml(e.label || ELECTROLYTES.label)}
+          </span>
+          <span class="log-amount log-amount-ely">+${waterLine}</span>
+          <span class="log-meta log-meta-ely">${stickLabel} · electrolytes</span>`;
+    } else if (e.label) {
       if (hasPartial) {
         const vol = formatAmountWithUnit(e.volumeMl, unit);
         const pct = hydrationPercent(e.hydration);
@@ -245,6 +262,50 @@
     void wrap.offsetWidth;
     wrap.classList.add('is-splashing');
     setTimeout(() => wrap.classList.remove('is-splashing'), 700);
+  }
+
+  /** Lightning / electrolyte charge animation for Electrolytes logs. */
+  function playElectrolytesFx() {
+    const fx = $('#electrolytes-fx');
+    const wrap = $('.gauge-wrap');
+    const sparks = $('#ely-sparks');
+    if (!fx) return;
+
+    // Build a few rising spark nodes once per play
+    if (sparks) {
+      sparks.innerHTML = '';
+      for (let i = 0; i < 10; i++) {
+        const s = document.createElement('span');
+        s.className = 'ely-spark';
+        s.style.setProperty('--sx', `${8 + Math.random() * 84}%`);
+        s.style.setProperty('--sd', `${0.05 + Math.random() * 0.45}s`);
+        s.style.setProperty('--ss', `${0.55 + Math.random() * 0.7}`);
+        sparks.appendChild(s);
+      }
+    }
+
+    fx.hidden = false;
+    // reflow
+    void fx.offsetWidth;
+    fx.classList.add('is-active');
+    if (wrap) {
+      wrap.classList.remove('is-charged');
+      void wrap.offsetWidth;
+      wrap.classList.add('is-charged');
+    }
+    document.body.classList.add('electrolytes-charged');
+
+    clearTimeout(playElectrolytesFx._t);
+    playElectrolytesFx._t = setTimeout(() => {
+      fx.classList.remove('is-active');
+      document.body.classList.remove('electrolytes-charged');
+      setTimeout(() => {
+        if (!fx.classList.contains('is-active')) fx.hidden = true;
+      }, 320);
+      if (wrap) {
+        setTimeout(() => wrap.classList.remove('is-charged'), 900);
+      }
+    }, 1100);
   }
 
   function renderGauge(total, goal) {
@@ -482,16 +543,28 @@
     const { pct, reached } = renderGauge(total, goal);
 
     const status = $('#status-chip');
+    const elyToday = entries.some((e) => typeof e.electrolytes === 'number' && e.electrolytes >= 1);
     if (reached) {
-      status.textContent = pct > 1.05 ? 'Over goal' : 'Goal reached';
+      status.textContent = elyToday
+        ? pct > 1.05
+          ? 'Over goal · electrolytes charged'
+          : 'Goal reached · electrolytes charged'
+        : pct > 1.05
+          ? 'Over goal'
+          : 'Goal reached';
       status.dataset.state = 'done';
+      status.classList.toggle('is-ely-charged', elyToday);
     } else if (total === 0) {
       status.textContent = 'Ready when you are';
       status.dataset.state = 'empty';
+      status.classList.remove('is-ely-charged');
     } else {
       const left = goal - total;
-      status.textContent = `${formatAmountWithUnit(left, unit)} water to go`;
+      status.textContent = elyToday
+        ? `${formatAmountWithUnit(left, unit)} water to go · ⚡ charged`
+        : `${formatAmountWithUnit(left, unit)} water to go`;
       status.dataset.state = 'progress';
+      status.classList.toggle('is-ely-charged', elyToday);
     }
 
     if (reached && !lastGoalReached && total > 0) {
@@ -518,6 +591,12 @@
       if (btn) {
         btn.setAttribute('aria-label', `Add full Owala bottle, ${amt} water`);
       }
+    }
+
+    // Keep Electrolytes sheet unit label in sync if open
+    if ($('#electrolytes-sheet')?.classList.contains('is-open')) {
+      const unitLabel = $('#electrolytes-unit');
+      if (unitLabel) unitLabel.textContent = unit;
     }
 
     $$('[data-drink]:not(#btn-owala)').forEach((btn) => {
@@ -622,17 +701,29 @@
 
   /**
    * @param {number} waterMl Effective water toward goal
-   * @param {{ label?: string, volumeMl?: number, hydration?: number }} opts
+   * @param {{ label?: string, volumeMl?: number, hydration?: number, electrolytes?: number, charged?: boolean }} opts
    */
   function addWater(waterMl, opts = {}) {
     if (!waterMl || waterMl <= 0) return;
     const entry = storage.addEntry(store, waterMl, opts);
-    haptic('medium');
-    pulseWave();
+    const isEly = typeof entry.electrolytes === 'number' && entry.electrolytes >= 1;
+
+    if (isEly || opts.charged) {
+      haptic('success');
+      pulseWave();
+      playElectrolytesFx();
+    } else {
+      haptic('medium');
+      pulseWave();
+    }
     render();
 
     const water = formatAmountWithUnit(entry.ml, store.unit);
-    if (entry.label && entry.volumeMl && entry.hydration && entry.hydration < 1) {
+    if (isEly) {
+      const sticks = entry.electrolytes;
+      const stickLabel = sticks === 1 ? '1 stick' : `${sticks} sticks`;
+      showToast(`⚡ +${water} water · ${stickLabel}`, { duration: 2800 });
+    } else if (entry.label && entry.volumeMl && entry.hydration && entry.hydration < 1) {
       const vol = formatAmountWithUnit(entry.volumeMl, store.unit);
       const pct = hydrationPercent(entry.hydration);
       showToast(`+${water} water · ${entry.label} (${vol}, ${pct}%)`);
@@ -642,6 +733,49 @@
       showToast(`+${water} water`);
     }
     return entry;
+  }
+
+  /**
+   * Log an Electrolytes mix: poured volume counts as water (1:1).
+   * Stick packs are metadata for the log + lightning charge FX only.
+   */
+  function addElectrolytes(volumeMl, sticks) {
+    const n = electrolytesSticksClamp(sticks);
+    const vol = electrolytesWaterMl(volumeMl);
+    if (vol <= 0) return null;
+    return addWater(vol, {
+      label: ELECTROLYTES.label,
+      volumeMl: vol,
+      electrolytes: n,
+      charged: true,
+    });
+  }
+
+  function openElectrolytesSheet() {
+    electrolytesSticks = ELECTROLYTES.defaultSticks;
+    const unit = store.unit;
+    const amount = $('#electrolytes-amount');
+    const unitLabel = $('#electrolytes-unit');
+    if (unitLabel) unitLabel.textContent = unit;
+    if (amount) {
+      // Default recommended mix size in the user's unit
+      const def =
+        unit === 'oz'
+          ? String(ELECTROLYTES.defaultOz)
+          : String(Math.round(ozToMl(ELECTROLYTES.defaultOz)));
+      amount.value = def;
+    }
+    refreshElectrolytesSheetUi();
+    openSheet('#electrolytes-sheet');
+  }
+
+  function refreshElectrolytesSheetUi() {
+    const valueEl = $('#electrolytes-sticks-value');
+    const minus = $('#electrolytes-sticks-minus');
+    const plus = $('#electrolytes-sticks-plus');
+    if (valueEl) valueEl.textContent = String(electrolytesSticks);
+    if (minus) minus.disabled = electrolytesSticks <= ELECTROLYTES.minSticks;
+    if (plus) plus.disabled = electrolytesSticks >= ELECTROLYTES.maxSticks;
   }
 
   /** Log a drink with an explicit poured volume (hydration applied). */
@@ -786,7 +920,25 @@
     }
 
     const drinkId = params.get('drink');
-    if (drinkId && drinkById(drinkId)) {
+    if (drinkId === 'electrolytes' || params.has('electrolytes')) {
+      // Siri / deep links: Electrolytes mix
+      // ?drink=electrolytes | ?electrolytes=1&add=16&unit=oz
+      // add uses unit= if present, otherwise saved preference (unlike plain ?add= which is ml)
+      const u =
+        params.get('unit') === 'oz' ? 'oz' : params.get('unit') === 'ml' ? 'ml' : store.unit;
+      // sticks from ?electrolytes=N or ?sticks=N (when using ?drink=electrolytes)
+      const sticksParam = params.get('electrolytes') || params.get('sticks') || '1';
+      const sticks = electrolytesSticksClamp(sticksParam);
+      let volumeMl = null;
+      if (params.get('add')) {
+        volumeMl = toMl(params.get('add'), u);
+      }
+      if (!volumeMl) {
+        volumeMl = Math.round(ozToMl(ELECTROLYTES.defaultOz));
+      }
+      addElectrolytes(volumeMl, sticks);
+      changed = true;
+    } else if (drinkId && drinkById(drinkId)) {
       // Siri / deep links: Owala = full bottle; other drinks = quick 8 oz
       if (drinkId === 'owala') {
         addDrink('owala');
@@ -798,7 +950,7 @@
     }
 
     const addRaw = params.get('add');
-    if (addRaw && !drinkId) {
+    if (addRaw && !drinkId && !params.has('electrolytes')) {
       const u = params.get('unit') === 'oz' ? 'oz' : 'ml';
       const ml = toMl(addRaw, u);
       if (ml) {
@@ -819,7 +971,8 @@
       params.has('add') ||
       params.has('goal') ||
       params.has('unit') ||
-      params.has('drink')
+      params.has('drink') ||
+      params.has('electrolytes')
     ) {
       try {
         const url = new URL(window.location.href);
@@ -842,6 +995,31 @@
 
     const owalaBtn = $('#btn-owala');
     if (owalaBtn) owalaBtn.addEventListener('click', () => addDrink('owala'));
+
+    $('#btn-electrolytes')?.addEventListener('click', () => openElectrolytesSheet());
+
+    $('#electrolytes-sticks-minus')?.addEventListener('click', () => {
+      if (electrolytesSticks <= ELECTROLYTES.minSticks) return;
+      electrolytesSticks -= 1;
+      haptic('light');
+      refreshElectrolytesSheetUi();
+    });
+    $('#electrolytes-sticks-plus')?.addEventListener('click', () => {
+      if (electrolytesSticks >= ELECTROLYTES.maxSticks) return;
+      electrolytesSticks += 1;
+      haptic('light');
+      refreshElectrolytesSheetUi();
+    });
+    $('#electrolytes-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const volumeMl = toMl($('#electrolytes-amount').value, store.unit);
+      if (!volumeMl) {
+        showToast('Enter a valid amount');
+        return;
+      }
+      closeSheets();
+      addElectrolytes(volumeMl, electrolytesSticks);
+    });
 
     const drinksGrid = $('#drinks-grid');
     if (drinksGrid) {

@@ -221,6 +221,31 @@
             <span class="owala-btn-plus" aria-hidden="true">+</span>
           </button>
 
+          <!-- Electrolytes: water 1:1 + stick tag + lightning FX -->
+          <button
+            type="button"
+            id="btn-electrolytes"
+            class="electrolytes-btn"
+            aria-label="Log Electrolytes mix — water plus stick packs"
+          >
+            <span class="electrolytes-btn-mark" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M13 2L4 14h7l-1 8 10-14h-7l0-6z"
+                  fill="currentColor"
+                  stroke="currentColor"
+                  stroke-width="0.5"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <span class="electrolytes-btn-text">
+              <span class="electrolytes-btn-title">Electrolytes</span>
+              <span class="electrolytes-btn-sub">Water + sticks · lightning charge</span>
+            </span>
+            <span class="electrolytes-btn-bolt" aria-hidden="true">⚡</span>
+          </button>
+
           <div class="quick-row">
             <button type="button" class="quick-btn" data-quick="250">
               <span class="quick-amount">+8.5</span>
@@ -276,6 +301,30 @@
     <!-- Toast -->
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+    <!-- Electrolytes lightning FX (full-screen, pointer-events none) -->
+    <div id="electrolytes-fx" class="electrolytes-fx" hidden aria-hidden="true">
+      <div class="ely-flash"></div>
+      <svg class="ely-bolt ely-bolt-a" viewBox="0 0 24 48" fill="none" aria-hidden="true">
+        <path d="M14 0L2 26h9L8 48l16-30h-9L18 0z" fill="url(#elyBoltGrad)" />
+      </svg>
+      <svg class="ely-bolt ely-bolt-b" viewBox="0 0 24 48" fill="none" aria-hidden="true">
+        <path d="M14 0L2 26h9L8 48l16-30h-9L18 0z" fill="url(#elyBoltGrad)" />
+      </svg>
+      <svg class="ely-bolt ely-bolt-c" viewBox="0 0 24 48" fill="none" aria-hidden="true">
+        <path d="M14 0L2 26h9L8 48l16-30h-9L18 0z" fill="url(#elyBoltGrad)" />
+      </svg>
+      <svg width="0" height="0" aria-hidden="true">
+        <defs>
+          <linearGradient id="elyBoltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#f5e6ff" />
+            <stop offset="40%" stop-color="#c084fc" />
+            <stop offset="100%" stop-color="#7ee0ff" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div class="ely-sparks" id="ely-sparks"></div>
+    </div>
+
     <!-- Backdrop -->
     <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
 
@@ -307,6 +356,54 @@
         </label>
         <p class="field-hint">Counts fully as water toward your goal.</p>
         <button type="submit" class="primary-btn">Add water</button>
+      </form>
+    </div>
+
+    <!-- Electrolytes sheet: volume + stick packs (water 1:1) -->
+    <div id="electrolytes-sheet" class="sheet" role="dialog" aria-labelledby="electrolytes-title" hidden>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-header">
+        <h2 id="electrolytes-title">Electrolytes</h2>
+        <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <form id="electrolytes-form" class="sheet-body electrolytes-sheet-body">
+        <p class="field-hint electrolytes-intro">
+          Mixed electrolytes into your drink? Log how much you poured and how many sticks —
+          water counts the same as plain water; sticks mark the charge (and the lightning).
+        </p>
+
+        <label class="field">
+          <span class="field-label">Drink amount (<span id="electrolytes-unit">oz</span>)</span>
+          <input
+            id="electrolytes-amount"
+            class="field-input"
+            type="number"
+            inputmode="decimal"
+            min="0.1"
+            step="any"
+            placeholder="e.g. 16"
+            required
+            autocomplete="off"
+          />
+        </label>
+
+        <div class="field electrolytes-sticks-field">
+          <span class="field-label" id="electrolytes-sticks-label">Stick packs</span>
+          <div class="stick-stepper" role="group" aria-labelledby="electrolytes-sticks-label">
+            <button type="button" id="electrolytes-sticks-minus" class="stick-step-btn" aria-label="Fewer sticks">−</button>
+            <output id="electrolytes-sticks-value" class="stick-step-value" for="electrolytes-sticks-minus electrolytes-sticks-plus" aria-live="polite">1</output>
+            <button type="button" id="electrolytes-sticks-plus" class="stick-step-btn" aria-label="More sticks">+</button>
+          </div>
+          <p class="field-hint stick-hint">Usually 1 stick per 16 oz</p>
+        </div>
+
+        <button type="submit" class="primary-btn electrolytes-submit">
+          <span aria-hidden="true">⚡</span> Log + charge
+        </button>
       </form>
     </div>
 
@@ -499,6 +596,8 @@
             Pure water counts 100%. Other drinks only count a portion toward your goal
             (coffee ~80%, soda ~75%, tea/milk/sports ~90%, juice/smoothie ~85%, sparkling 100%)
             because they are not pure water.
+            <strong>Electrolytes</strong> still counts as the water you poured (1:1) — sticks are not
+            extra fluid ounces. The app tags them and plays a charge animation.
           </p>
         </div>
 
