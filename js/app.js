@@ -2,7 +2,6 @@
 (function () {
   const {
     DRINK_PRESETS,
-    DRINK_QUICK_OZ,
     ELECTROLYTES,
     clamp,
     dayKey,
@@ -818,6 +817,7 @@
     const pct = hydrationPercent(preset.hydration);
     const title = $('#drink-sheet-title');
     const hint = $('#drink-sheet-hint');
+    const quickMain = $('#drink-quick-main');
     const quickWater = $('#drink-quick-water');
     const unitLabel = $('#drink-custom-unit');
     const preview = $('#drink-custom-preview');
@@ -830,8 +830,12 @@
           : `Only ${pct}% of what you pour counts as water toward your goal.`;
     }
 
-    const quickVolMl = ozToMl(DRINK_QUICK_OZ);
+    // Primary quick-add uses the preset’s default size (e.g. iced latte 21 oz)
+    const quickVolMl = Math.round(ozToMl(preset.oz));
     const quickWaterMl = waterFromVolume(quickVolMl, preset.hydration);
+    if (quickMain) {
+      quickMain.textContent = `Add ${formatAmountWithUnit(quickVolMl, unit)}`;
+    }
     if (quickWater) {
       quickWater.textContent =
         pct >= 100
@@ -1026,12 +1030,12 @@
       });
     }
 
-    $('#drink-quick-8oz')?.addEventListener('click', () => {
+    $('#drink-quick-default')?.addEventListener('click', () => {
       const preset = drinkById(activeDrinkId);
       if (!preset) return;
       closeSheets();
       activeDrinkId = null;
-      addDrinkVolume(preset, ozToMl(DRINK_QUICK_OZ));
+      addDrinkVolume(preset, Math.round(ozToMl(preset.oz)));
     });
 
     $('#drink-custom-amount')?.addEventListener('input', updateDrinkCustomPreview);

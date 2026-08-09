@@ -113,10 +113,7 @@
     return DRINK_PRESETS.find((d) => d.id === id) || null;
   }
 
-  /** Default quick size when logging a drink from the sheet (fl oz). */
-  const DRINK_QUICK_OZ = 8;
-
-  /** Full drink volume in ml (legacy preset size). */
+  /** Full drink volume in ml (preset default size). */
   function drinkVolumeMl(preset) {
     return Math.round(ozToMl(preset.oz));
   }
@@ -210,7 +207,6 @@
     QUICK_ADDS_ML,
     OWALA_OZ,
     OWALA_ML,
-    DRINK_QUICK_OZ,
     DRINK_PRESETS,
     drinkById,
     drinkMl,
