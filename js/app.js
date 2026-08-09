@@ -939,13 +939,9 @@
       addElectrolytes(volumeMl, sticks);
       changed = true;
     } else if (drinkId && drinkById(drinkId)) {
-      // Siri / deep links: Owala = full bottle; other drinks = quick 8 oz
-      if (drinkId === 'owala') {
-        addDrink('owala');
-      } else {
-        const preset = drinkById(drinkId);
-        addDrinkVolume(preset, ozToMl(DRINK_QUICK_OZ));
-      }
+      // Siri / deep links: log the preset’s default size (Owala 24 oz, iced latte 21 oz, etc.)
+      const preset = drinkById(drinkId);
+      addDrinkVolume(preset, Math.round(ozToMl(preset.oz)));
       changed = true;
     }
 

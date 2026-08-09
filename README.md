@@ -23,13 +23,16 @@ Goals track **effective water**, not full poured volume:
 
 | Drink | Counts as water |
 |-------|-----------------|
-| Water / Owala / Sparkling | 100% |
-| Tea, milk, sports drink | 90% |
+| Water / Owala | 100% |
+| Iced latte (Vertuo Melozio + milk, 21 oz glass) | 89% |
+| Tea, sports drink | 90% |
 | Juice | 85% |
 | Fruit smoothie | 85% |
 | Coffee | 80% |
 | Soda | 75% |
 | **ELECTROLYTES** mix | **100%** of poured volume (same as water) + stick tag |
+
+**Iced latte math** (default 21 oz glass): 1 **Vertuo Melozio** mug brew (**7.77 fl oz** / ~230 ml @ 80%) + ~6.5 oz ice @ 100% + milk filling the rest (~6.7 oz @ 90%) → **~18.8 oz effective water** (89% of 21 oz).
 
 ### ELECTROLYTES
 
@@ -113,7 +116,7 @@ Replace `BASE` with your real URL, e.g.
 | Full Owala (24 oz) | `BASE?drink=owala` |
 | ELECTROLYTES (16 oz, 1 stick) | `BASE?drink=electrolytes` |
 | ELECTROLYTES custom | `BASE?electrolytes=2&add=20&unit=oz` (2 sticks in 20 oz) |
-| Coffee / tea / soda… | `BASE?drink=coffee` (also: `tea`, `soda`, `juice`, `smoothie`, `milk`, `sparkling`, `sports`) |
+| Coffee / tea / soda… | `BASE?drink=coffee` (also: `tea`, `soda`, `juice`, `smoothie`, `sports`, `iced-latte`) |
 | Add 250 ml (one glass) | `BASE?add=250` |
 | Add 500 ml | `BASE?add=500` |
 | Add 16 oz | `BASE?add=16&unit=oz` |

@@ -89,17 +89,23 @@
   /**
    * Drink presets with hydration factors (0–1).
    * hydration = fraction of volume that counts toward the water goal.
-   * Pure water / sparkling = 1.0; caffeinated & sugary drinks count less.
+   * Pure water = 1.0; caffeinated & sugary drinks count less.
+   *
+   * Iced latte (Vertuo Melozio + milk, 21 oz glass) — ingredient math:
+   *   Melozio Vertuo mug brew: 7.77 fl oz (~230 ml) @ coffee 80%
+   *   Ice (typical iced fill): ~6.5 oz @ 100% (melts to water)
+   *   Milk (fills remainder):  21 − 7.77 − 6.5 ≈ 6.73 oz @ 90%
+   *   Water credit: 7.77×0.8 + 6.5×1.0 + 6.73×0.9 ≈ 18.78 oz
+   *   Effective hydration: 18.78 / 21 ≈ 0.89
    */
   const DRINK_PRESETS = Object.freeze([
     { id: 'owala', label: 'Owala', oz: OWALA_OZ, hydration: 1 },
+    { id: 'iced-latte', label: 'Iced latte', oz: 21, hydration: 0.89 },
     { id: 'tea', label: 'Tea', oz: 8, hydration: 0.9 },
     { id: 'coffee', label: 'Coffee', oz: 8, hydration: 0.8 },
     { id: 'soda', label: 'Soda', oz: 12, hydration: 0.75 },
     { id: 'juice', label: 'Juice', oz: 8, hydration: 0.85 },
     { id: 'smoothie', label: 'Fruit smoothie', oz: 12, hydration: 0.85 },
-    { id: 'milk', label: 'Milk', oz: 8, hydration: 0.9 },
-    { id: 'sparkling', label: 'Sparkling', oz: 12, hydration: 1 },
     { id: 'sports', label: 'Sports drink', oz: 20, hydration: 0.9 },
   ]);
 
