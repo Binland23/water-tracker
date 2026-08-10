@@ -2326,3 +2326,1165 @@ body.has-photo-bg .undo-bar {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
+/* —— Celebration FX bank (goal met + streaks) —— */
+.celebration-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.celebration-fx[hidden] {
+  display: none !important;
+}
+
+.cele-banner {
+  position: absolute;
+  left: 50%;
+  top: max(18%, calc(var(--safe-top) + 88px));
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 5;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(126, 224, 255, 0.08) inset;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: celeBannerIn 0.55s var(--ease-spring) both;
+  max-width: min(92vw, 340px);
+}
+
+.cele-banner-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+.cele-banner-sub {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+@keyframes celeBannerIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* Aurora */
+.cele-aurora-sky {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(20, 40, 70, 0.55), transparent 70%);
+}
+
+.cele-aurora-ribbon {
+  position: absolute;
+  left: -10%;
+  width: 120%;
+  height: 28%;
+  top: var(--y, 20%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsla(var(--hue, 180), 80%, 62%, 0) 10%,
+    hsla(var(--hue, 180), 85%, 62%, 0.45) 40%,
+    hsla(calc(var(--hue, 180) + 30), 90%, 70%, 0.55) 55%,
+    hsla(var(--hue, 180), 80%, 58%, 0.2) 75%,
+    transparent 100%
+  );
+  filter: blur(18px);
+  border-radius: 50%;
+  opacity: 0;
+  animation: celeAuroraDrift var(--dur, 2.6s) var(--ease-out) var(--delay, 0s) both;
+  mix-blend-mode: screen;
+}
+
+@keyframes celeAuroraDrift {
+  0% {
+    opacity: 0;
+    transform: translateX(-12%) skewX(-8deg) scaleY(0.6);
+  }
+  25% {
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.75;
+    transform: translateX(6%) skewX(4deg) scaleY(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(14%) skewX(10deg) scaleY(0.8);
+  }
+}
+
+.cele-aurora-stars span {
+  position: absolute;
+  width: calc(2px * var(--ss, 1));
+  height: calc(2px * var(--ss, 1));
+  border-radius: 50%;
+  background: #e8f7ff;
+  box-shadow: 0 0 6px rgba(180, 230, 255, 0.9);
+  opacity: 0;
+  animation: celeStarTwinkle 1.8s ease-in-out var(--sd, 0s) both;
+}
+
+@keyframes celeStarTwinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* Bubbles */
+.cele-bubble-field {
+  position: absolute;
+  inset: 0;
+}
+
+.cele-bubble {
+  position: absolute;
+  bottom: -10%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.75), transparent 28%),
+    radial-gradient(circle at 70% 70%, hsla(var(--hue, 190), 80%, 70%, 0.25), transparent 50%),
+    radial-gradient(circle at 50% 50%, hsla(var(--hue, 190), 70%, 60%, 0.12), hsla(var(--hue, 190), 60%, 50%, 0.05));
+  border: 1.5px solid rgba(200, 240, 255, 0.45);
+  box-shadow:
+    inset 0 0 12px rgba(255, 255, 255, 0.25),
+    0 0 16px hsla(var(--hue, 190), 80%, 60%, 0.25);
+  opacity: 0;
+  animation: celeBubbleRise var(--rise, 3s) var(--ease-out) var(--delay, 0s) both;
+}
+
+@keyframes celeBubbleRise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  12% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift, 0), -110vh) scale(1.05);
+  }
+}
+
+/* Rain reversal */
+.cele-rain-field {
+  position: absolute;
+  inset: 0;
+}
+
+.cele-drop {
+  position: absolute;
+  top: -5%;
+  width: var(--thick, 2px);
+  height: var(--len, 14px);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(180, 235, 255, 0.95), rgba(61, 184, 212, 0.4));
+  opacity: 0;
+  animation: celeRainFlip calc(var(--fall, 0.8s) * 2.6) var(--ease-out) var(--delay, 0s) both;
+}
+
+@keyframes celeRainFlip {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  8% {
+    opacity: 1;
+  }
+  38% {
+    opacity: 1;
+    transform: translateY(70vh);
+  }
+  48% {
+    opacity: 0.9;
+    transform: translateY(72vh) scaleY(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-15vh) scaleY(1.1);
+  }
+}
+
+/* Ripple crown */
+.cele-ripple-stage {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 0;
+  height: 0;
+}
+
+.cele-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  border: 2px solid rgba(126, 224, 255, 0.7);
+  opacity: 0;
+  animation: celeRingExpand 1.8s var(--ease-out) calc(var(--i, 0) * 0.14s) both;
+}
+
+@keyframes celeRingExpand {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(calc(8 + var(--i, 0) * 1.5));
+  }
+}
+
+.cele-crown-drop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  margin: -4px;
+  border-radius: 50% 50% 50% 10%;
+  background: #7ee0ff;
+  box-shadow: 0 0 10px rgba(126, 224, 255, 0.8);
+  opacity: 0;
+  animation: celeCrownArc 1.4s var(--ease-spring) var(--delay, 0s) both;
+}
+
+@keyframes celeCrownArc {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a, 0rad)) translateX(0) scale(0.3);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a, 0rad)) translateX(140px) translateY(-20px) scale(0.6);
+  }
+}
+
+/* Orbit splash */
+.cele-orbit-stage {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 0;
+  height: 0;
+}
+
+.cele-orbit-core {
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #e8fbff, #3db8d4 60%, transparent);
+  box-shadow: 0 0 30px rgba(94, 200, 232, 0.8);
+  animation: celeCorePulse 2.8s var(--ease-out) both;
+}
+
+@keyframes celeCorePulse {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.cele-orbit-particle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px;
+  border-radius: 50%;
+  background: hsl(var(--hue, 190), 80%, 70%);
+  box-shadow: 0 0 8px hsla(var(--hue, 190), 80%, 60%, 0.8);
+  animation: celeOrbitFling 2.6s var(--ease-out) var(--delay, 0s) both;
+}
+
+@keyframes celeOrbitFling {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a, 0deg)) translateX(8px) scale(0.4);
+  }
+  25% {
+    opacity: 1;
+    transform: rotate(calc(var(--a, 0deg) + 90deg)) translateX(var(--r, 60px)) scale(1);
+  }
+  55% {
+    opacity: 1;
+    transform: rotate(calc(var(--a, 0deg) + 200deg)) translateX(var(--r, 60px)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(calc(var(--a, 0deg) + 260deg)) translateX(calc(var(--r, 60px) + 160px)) scale(0.3);
+  }
+}
+
+/* Tide wave */
+.cele-tide-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 55%;
+  animation: celeTideSweep 2.8s var(--ease-out) both;
+}
+
+.cele-tide-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.cele-tide-body {
+  fill: url(#none);
+  fill: color-mix(in srgb, #1a7a96 75%, #0b1f2a);
+  opacity: 0.92;
+}
+
+.cele-tide-foam {
+  filter: drop-shadow(0 0 6px rgba(200, 240, 255, 0.6));
+}
+
+@keyframes celeTideSweep {
+  0% {
+    transform: translateX(-100%) translateY(20%);
+    opacity: 0.6;
+  }
+  35% {
+    transform: translateX(0) translateY(0);
+    opacity: 1;
+  }
+  70% {
+    transform: translateX(8%) translateY(-4%);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(30%) translateY(25%);
+    opacity: 0;
+  }
+}
+
+.cele-tide-spray {
+  position: absolute;
+  inset: 0;
+}
+
+.cele-tide-spray span {
+  position: absolute;
+  bottom: 40%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(220, 245, 255, 0.9);
+  opacity: 0;
+  animation: celeSpray 1.2s var(--ease-out) var(--d, 0.5s) both;
+}
+
+@keyframes celeSpray {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x, 0), -80px) scale(0.2);
+  }
+}
+
+/* Prism */
+.cele-prism-beam {
+  position: absolute;
+  left: 50%;
+  top: -10%;
+  width: 8px;
+  height: 70%;
+  margin-left: -4px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(126, 224, 255, 0.15));
+  filter: blur(1px);
+  transform-origin: top center;
+  animation: celeBeam 2.4s var(--ease-out) both;
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.5);
+}
+
+@keyframes celeBeam {
+  0% {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  25% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1.05);
+  }
+}
+
+.cele-prism-shards {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 0;
+  height: 0;
+}
+
+.cele-shard {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 120px;
+  height: 8px;
+  margin-left: -8px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    hsla(var(--h, 180), 90%, 65%, 0),
+    hsla(var(--h, 180), 90%, 65%, 0.85),
+    hsla(var(--h, 180), 90%, 75%, 0)
+  );
+  transform-origin: left center;
+  opacity: 0;
+  animation: celeShard 2s var(--ease-out) var(--delay, 0s) both;
+  filter: blur(0.5px);
+}
+
+@keyframes celeShard {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a, 0deg)) scaleX(0.1);
+  }
+  30% {
+    opacity: 1;
+    transform: rotate(var(--a, 0deg)) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a, 0deg)) scaleX(1.3) translateX(40px);
+  }
+}
+
+/* Fireflies */
+.cele-firefly-field {
+  position: absolute;
+  inset: 0;
+}
+
+.cele-firefly {
+  position: absolute;
+  bottom: 5%;
+  width: var(--size, 6px);
+  height: var(--size, 6px);
+  border-radius: 50%;
+  background: hsl(var(--hue, 180), 90%, 70%);
+  box-shadow:
+    0 0 8px hsl(var(--hue, 180), 90%, 65%),
+    0 0 20px hsla(var(--hue, 180), 90%, 60%, 0.6);
+  opacity: 0;
+  animation: celeFirefly var(--rise, 2.8s) var(--ease-out) var(--delay, 0s) both;
+}
+
+@keyframes celeFirefly {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3);
+  }
+  15% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.9;
+    transform: translate(calc(var(--drift, 0) * 0.5), -45vh) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift, 0), -95vh) scale(0.4);
+  }
+}
+
+/* Crystal */
+.cele-crystal-stage {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 0;
+  height: 0;
+}
+
+.cele-crystal-badge {
+  position: absolute;
+  left: -48px;
+  top: -48px;
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: 28% 28% 32% 32% / 30% 30% 34% 34%;
+  background:
+    linear-gradient(145deg, rgba(230, 250, 255, 0.95), rgba(94, 200, 232, 0.75) 45%, rgba(26, 122, 150, 0.9));
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 0 0 4px rgba(126, 224, 255, 0.2),
+    0 16px 40px rgba(0, 0, 0, 0.3),
+    inset 0 0 20px rgba(255, 255, 255, 0.35);
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #0a2430;
+  animation: celeCrystalForm 2.8s var(--ease-spring) both;
+}
+
+@keyframes celeCrystalForm {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(-20deg);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.12) rotate(4deg);
+  }
+  45% {
+    transform: scale(1) rotate(0);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4) rotate(8deg);
+  }
+}
+
+.cele-ice-shard {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 22px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(126, 224, 255, 0.5));
+  clip-path: polygon(50% 0%, 100% 40%, 70% 100%, 30% 100%, 0% 40%);
+  opacity: 0;
+  animation: celeIceShatter 1.4s var(--ease-out) var(--delay, 0.9s) both;
+}
+
+@keyframes celeIceShatter {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a, 0deg)) translateX(0) rotate(0deg) scale(0.5);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a, 0deg)) translateX(var(--dist, 120px)) rotate(var(--rot, 40deg)) scale(0.3);
+  }
+}
+
+/* Helix */
+.cele-helix-stage {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 0;
+  height: 0;
+}
+
+.cele-helix-bead {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px;
+  border-radius: 50%;
+  background: #7ee0ff;
+  box-shadow: 0 0 10px rgba(126, 224, 255, 0.85);
+  opacity: 0;
+  animation: celeHelixRise 2.8s var(--ease-out) var(--delay, 0s) both;
+}
+
+.cele-helix-bead.strand-1 {
+  background: #5dcca8;
+  box-shadow: 0 0 10px rgba(93, 204, 168, 0.85);
+}
+
+@keyframes celeHelixRise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 40px) scale(0.3);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x, 0px), var(--y, -120px)) scale(0.65);
+  }
+}
+
+.cele-helix-bar {
+  position: absolute;
+  left: -28px;
+  width: 56px;
+  height: 2px;
+  background: linear-gradient(90deg, #7ee0ff, #5dcca8);
+  opacity: 0;
+  border-radius: 1px;
+  animation: celeHelixBar 2.4s var(--ease-out) var(--delay, 0s) both;
+  top: 0;
+}
+
+@keyframes celeHelixBar {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scaleX(0.2);
+  }
+  30% {
+    opacity: 0.7;
+    transform: translateY(var(--y, -40px)) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(calc(var(--y, -40px) - 80px)) scaleX(0.5);
+  }
+}
+
+/* Streak inferno */
+.cele-flame-chain {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  display: flex;
+  gap: 10px;
+  transform: translate(-50%, -50%);
+}
+
+.cele-flame-link {
+  width: 28px;
+  height: 40px;
+  opacity: 0;
+  animation: celeFlamePop 0.7s var(--ease-spring) var(--delay, 0s) both;
+}
+
+.cele-flame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse 50% 40% at 50% 80%, #fff6a8, transparent 50%),
+    radial-gradient(ellipse 60% 70% at 50% 60%, #ff9a3c, transparent 65%),
+    radial-gradient(ellipse 50% 80% at 50% 40%, #ff5a2a, transparent 70%);
+  border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+  filter: drop-shadow(0 0 8px rgba(255, 120, 40, 0.7));
+  animation: celeFlameFlicker 0.35s ease-in-out infinite alternate;
+}
+
+@keyframes celeFlamePop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) translateY(20px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.15) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes celeFlameFlicker {
+  from {
+    transform: scaleY(1) scaleX(1);
+  }
+  to {
+    transform: scaleY(1.08) scaleX(0.94);
+  }
+}
+
+.cele-embers {
+  position: absolute;
+  inset: 0;
+}
+
+.cele-embers span {
+  position: absolute;
+  bottom: 35%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ffb060;
+  box-shadow: 0 0 8px rgba(255, 140, 40, 0.9);
+  opacity: 0;
+  animation: celeEmber var(--rise, 1.8s) var(--ease-out) var(--d, 0s) both;
+}
+
+@keyframes celeEmber {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-50vh) scale(0.2);
+  }
+}
+
+/* Meteors */
+.cele-meteor-field {
+  position: absolute;
+  inset: 0;
+}
+
+.cele-meteor {
+  position: absolute;
+  width: var(--len, 80px);
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(200, 240, 255, 0.15), #e8fbff);
+  box-shadow: 0 0 12px rgba(126, 224, 255, 0.7);
+  transform: rotate(var(--angle, 35deg));
+  opacity: 0;
+  animation: celeMeteor var(--dur, 1s) var(--ease-out) var(--delay, 0s) both;
+}
+
+@keyframes celeMeteor {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--angle, 35deg)) translateX(0);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle, 35deg)) translateX(70vw);
+  }
+}
+
+/* Koi */
+.cele-koi-pond {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 40% at 50% 60%, rgba(26, 100, 120, 0.35), transparent 70%);
+}
+
+.cele-koi-fish {
+  position: absolute;
+  width: 88px;
+  height: 36px;
+  color: #f0a060;
+  opacity: 0;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+  animation: celeKoiSwim 2.8s var(--ease-out) var(--delay, 0s) both;
+}
+
+.cele-koi-fish.f0 {
+  top: 42%;
+  color: #e87850;
+}
+.cele-koi-fish.f1 {
+  top: 52%;
+  color: #f5c878;
+  width: 72px;
+}
+.cele-koi-fish.f2 {
+  top: 48%;
+  color: #e8e8e8;
+  width: 96px;
+}
+
+.cele-koi-fish svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@keyframes celeKoiSwim {
+  0% {
+    opacity: 0;
+    left: -15%;
+    transform: translateY(0) scaleX(1);
+  }
+  15% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-12px) scaleX(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    left: 110%;
+    transform: translateY(8px) scaleX(1);
+  }
+}
+
+.cele-koi-ripple {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(180, 230, 245, 0.5);
+  opacity: 0;
+  animation: celeKoiRipple 1.4s var(--ease-out) var(--delay, 0s) both;
+}
+
+@keyframes celeKoiRipple {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(4);
+  }
+}
+
+/* Stamp */
+.cele-stamp-stage {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 0;
+  height: 0;
+}
+
+.cele-stamp-mark {
+  position: absolute;
+  left: -70px;
+  top: -40px;
+  width: 140px;
+  height: 80px;
+  display: grid;
+  place-items: center;
+  border: 4px solid color-mix(in srgb, var(--accent-strong) 80%, #5dcca8);
+  border-radius: 12px;
+  color: color-mix(in srgb, var(--accent-strong) 70%, #5dcca8);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  transform: rotate(-8deg);
+  opacity: 0;
+  animation: celeStamp 1.6s var(--ease-spring) both;
+}
+
+.cele-stamp-text {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cele-stamp-edge {
+  position: absolute;
+  inset: 4px;
+  border: 1.5px dashed currentColor;
+  border-radius: 8px;
+  opacity: 0.5;
+}
+
+@keyframes celeStamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-18deg) scale(2.2) translateY(-40px);
+  }
+  35% {
+    opacity: 1;
+    transform: rotate(-6deg) scale(0.92) translateY(4px);
+  }
+  50% {
+    transform: rotate(-8deg) scale(1.04);
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(-8deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-8deg) scale(1.05);
+  }
+}
+
+.cele-ink-splash {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.cele-ink-splash span {
+  position: absolute;
+  width: var(--s, 10px);
+  height: var(--s, 10px);
+  margin: calc(var(--s, 10px) / -2);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 55%, #5dcca8);
+  opacity: 0;
+  animation: celeInk 1s var(--ease-out) 0.3s both;
+}
+
+@keyframes celeInk {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a, 0deg)) translateX(0) scale(0.3);
+  }
+  40% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a, 0deg)) translateX(var(--d, 40px)) scale(0.6);
+  }
+}
+
+/* Fountain */
+.cele-fountain-field {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  width: 0;
+  height: 0;
+}
+
+.cele-fountain-drop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--size, 5px);
+  height: var(--size, 5px);
+  margin: calc(var(--size, 5px) / -2);
+  border-radius: 50%;
+  background: #b8f0ff;
+  box-shadow: 0 0 8px rgba(126, 224, 255, 0.7);
+  opacity: 0;
+  animation: celeFountain var(--dur, 1.4s) var(--ease-out) var(--delay, 0s) both;
+}
+
+@keyframes celeFountain {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a, 0deg)) translateY(0) scale(0.4);
+  }
+  12% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+    transform: rotate(var(--a, 0deg)) translateY(calc(var(--v, 60vh) * -0.55)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a, 0deg)) translateY(calc(var(--v, 60vh) * -0.15)) translateX(30px) scale(0.3);
+  }
+}
+
+/* Galaxy */
+.cele-galaxy-stage {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 0;
+  height: 0;
+}
+
+.cele-galaxy-core {
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff, #7ee0ff 40%, transparent 70%);
+  box-shadow: 0 0 40px rgba(126, 224, 255, 0.9);
+  animation: celeGalaxyCore 3s var(--ease-out) both;
+}
+
+@keyframes celeGalaxyCore {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+.cele-galaxy-star {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 50%;
+  background: hsl(var(--hue, 190), 85%, 72%);
+  box-shadow: 0 0 6px hsla(var(--hue, 190), 85%, 65%, 0.9);
+  opacity: 0;
+  animation: celeGalaxySpin 3s var(--ease-out) var(--delay, 0s) both;
+}
+
+@keyframes celeGalaxySpin {
+  0% {
+    opacity: 0;
+    transform: rotate(calc(var(--arm, 0) * 120deg)) translateX(160px) scale(0.4);
+  }
+  35% {
+    opacity: 1;
+    transform: rotate(calc(var(--arm, 0) * 120deg + 180deg)) translateX(calc(40px + var(--t, 0.5) * 50px)) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(calc(var(--arm, 0) * 120deg + 320deg)) translateX(12px) scale(0.8);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(calc(var(--arm, 0) * 120deg + 400deg)) translateX(200px) scale(0.2);
+  }
+}
+
+/* Origami fleet */
+.cele-origami-field {
+  position: absolute;
+  inset: 0;
+}
+
+.cele-plane {
+  position: absolute;
+  left: -20%;
+  top: var(--y, 30%);
+  width: 56px;
+  height: 28px;
+  color: #9ee8f8;
+  opacity: 0;
+  filter: drop-shadow(0 4px 8px rgba(0, 40, 60, 0.25));
+  animation: celePlaneFly 2.6s var(--ease-out) var(--delay, 0s) both;
+}
+
+.cele-plane svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@keyframes celePlaneFly {
+  0% {
+    opacity: 0;
+    left: -20%;
+    transform: translateY(0) rotate(-8deg);
+  }
+  15% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-18px) rotate(4deg);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    left: 110%;
+    transform: translateY(10px) rotate(-4deg);
+  }
+}
+
+/* Reduced motion */
+.cele-reduced .cele-banner {
+  animation-duration: 0.25s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration-fx * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .cele-banner {
+    animation: none !important;
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
+
+/* Streak pill under gauge (fun layer) */
+.hero-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(320px, 100%);
+  margin-top: 4px;
+}
+
+.hero .status-chip {
+  margin-top: 0;
+}
+
+.streak-pill[hidden] {
+  display: none !important;
+}

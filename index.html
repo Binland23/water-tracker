@@ -191,7 +191,14 @@
               </div>
             </div>
           </div>
-          <p id="status-chip" class="status-chip" data-state="empty">Ready when you are</p>
+          <div class="hero-meta">
+            <p id="status-chip" class="status-chip" data-state="empty">Ready when you are</p>
+            <div id="streak-pill" class="streak-pill" hidden>
+              <span class="streak-fire" aria-hidden="true">🔥</span>
+              <span id="streak-value" class="streak-value">0</span>
+              <span class="streak-label">day streak</span>
+            </div>
+          </div>
         </section>
 
         <section class="quick-section" aria-label="Add water">
@@ -300,6 +307,9 @@
 
     <!-- Toast -->
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- Goal / streak celebration FX (full-screen, pointer-events none) -->
+    <div id="celebration-fx" class="celebration-fx" hidden aria-hidden="true"></div>
 
     <!-- Electrolytes lightning FX (full-screen, pointer-events none) -->
     <div id="electrolytes-fx" class="electrolytes-fx" hidden aria-hidden="true">
@@ -602,6 +612,7 @@
         </div>
 
         <div class="settings-block actions-block">
+          <button type="button" id="btn-preview-cele" class="ghost-btn">Preview celebration</button>
           <button type="button" id="btn-clear-today" class="ghost-btn">Clear today</button>
           <button type="button" id="btn-export" class="ghost-btn">Export data</button>
           <button type="button" id="btn-clear-all" class="danger-btn">Delete all history</button>
@@ -619,6 +630,7 @@
     <script src="js/utils.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/bg-photo.js"></script>
+    <script src="js/celebrations.js"></script>
     <script src="js/app.js"></script>
     <script>
       // Service workers need http(s) or localhost — skip on file://

@@ -201,6 +201,86 @@
     return JSON.stringify(store, null, 2);
   }
 
+  /**
+   * Map of dayKey → total ml for every day that has entries.
+   * @returns {Map<string, number>}
+   */
+  function totalsByDay(store) {
+    const map = new Map();
+    for (const e of store.entries) {
+      const key = dayKey(new Date(e.ts));
+      map.set(key, (map.get(key) || 0) + e.ml);
+    }
+    return map;
+  }
+
+  /**
+   * Consecutive days meeting the goal, counting backward from `fromKey` (default: today).
+   * If today is not yet met, still counts a streak ending yesterday (active chain).
+   * When `requireToday` is true, returns 0 unless `fromKey` itself met the goal
+   * (used for celebration at the moment the goal is hit).
+   * @param {object} store
+   * @param {{ fromKey?: string, requireToday?: boolean }} [opts]
+   */
+  function currentStreak(store, opts = {}) {
+    const goal = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
+    const fromKey = opts.fromKey || dayKey();
+    const totals = totalsByDay(store);
+    const requireToday = !!opts.requireToday;
+
+    const start = fromKey.split('-').map(Number);
+    let y = start[0];
+    let m = start[1];
+    let d = start[2];
+
+    const met = (key) => (totals.get(key) || 0) >= goal && (totals.get(key) || 0) > 0;
+
+    // Walk calendar days backward
+    let streak = 0;
+    let cursor = new Date(y, m - 1, d);
+    const todayMet = met(dayKey(cursor));
+
+    if (requireToday && !todayMet) return 0;
+
+    // If today isn't done yet and we aren't requiring today, start from yesterday
+    if (!requireToday && !todayMet) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    for (let i = 0; i < 800; i++) {
+      const key = dayKey(cursor);
+      if (!met(key)) break;
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  /** Longest consecutive goal-met stretch in history. */
+  function longestStreak(store) {
+    const goal = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
+    const totals = totalsByDay(store);
+    const keys = [...totals.keys()].filter((k) => (totals.get(k) || 0) >= goal).sort();
+    if (!keys.length) return 0;
+
+    let best = 1;
+    let run = 1;
+    for (let i = 1; i < keys.length; i++) {
+      const prev = keys[i - 1].split('-').map(Number);
+      const cur = keys[i].split('-').map(Number);
+      const prevDate = new Date(prev[0], prev[1] - 1, prev[2]);
+      const curDate = new Date(cur[0], cur[1] - 1, cur[2]);
+      const diff = (curDate - prevDate) / 86400000;
+      if (diff === 1) {
+        run += 1;
+        if (run > best) best = run;
+      } else {
+        run = 1;
+      }
+    }
+    return best;
+  }
+
   global.WaterStorage = {
     STORAGE_KEY,
     DEFAULT_GOAL_ML,
@@ -218,6 +298,9 @@
     weekTotals,
     monthTotals,
     daysWithEntries,
+    totalsByDay,
+    currentStreak,
+    longestStreak,
     exportJson,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

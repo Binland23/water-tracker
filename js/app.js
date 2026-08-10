@@ -31,6 +31,7 @@
   let lastGoalReached = false;
   /** @type {string | null} */
   let currentBgPhoto = null;
+  const celebrations = window.WaterCelebrations;
   /** Drink currently open in the amount sheet */
   let activeDrinkId = null;
   /** Stick packs selected in the Electrolytes sheet */
@@ -261,6 +262,102 @@
     void wrap.offsetWidth;
     wrap.classList.add('is-splashing');
     setTimeout(() => wrap.classList.remove('is-splashing'), 700);
+  }
+
+  function renderStreakPill() {
+    const pill = $('#streak-pill');
+    const valueEl = $('#streak-value');
+    if (!pill || !valueEl) return;
+    const streak = storage.currentStreak(store);
+    if (streak >= 2) {
+      pill.hidden = false;
+      valueEl.textContent = String(streak);
+      pill.setAttribute(
+        'aria-label',
+        `${streak} day goal streak${streak === 1 ? '' : 's'}`
+      );
+    } else {
+      pill.hidden = true;
+    }
+  }
+
+  /**
+   * Fire a random celebration from the animation bank when the daily goal is met.
+   * Milestones (3, 7, 14, 30…) use a bigger tier; multi-day streaks mix in streak FX.
+   * @param {number} streak
+   */
+  function celebrateGoalMet(streak) {
+    const n = Math.max(1, streak || 1);
+    let toastMsg = 'Goal reached — nice work';
+    let title = 'Goal met';
+    let subtitle = 'Hydration secured';
+
+    if (celebrations?.isStreakMilestone?.(n)) {
+      toastMsg =
+        n >= 100
+          ? `${n}-day legend — unreal`
+          : n >= 30
+            ? `${n}-day milestone — locked in`
+            : `${n}-day streak — beautiful`;
+      title =
+        n >= 365 ? 'A full year hydrated' : n >= 100 ? `${n}-day legend` : `${n}-day streak`;
+      subtitle = n >= 30 ? 'Consistency looks good on you' : 'Chain reaction';
+    } else if (n >= 2) {
+      toastMsg = `Goal met · ${n}-day streak 🔥`;
+      title = 'Goal met';
+      subtitle = `${n}-day streak and counting`;
+    }
+
+    showToast(toastMsg, { duration: n >= 7 ? 3200 : 2600 });
+
+    if (celebrations?.playForGoalMet) {
+      const id = celebrations.playForGoalMet({ streak: n, title, subtitle });
+      // Soft gauge pulse after the banner lands
+      setTimeout(() => pulseWave(), 180);
+      return id;
+    }
+    return null;
+  }
+
+  /** Settings / deep-link: preview a random (or named) celebration. */
+  function previewCelebration(kindOrId) {
+    if (!celebrations?.play) {
+      showToast('Celebrations unavailable');
+      return;
+    }
+    closeSheets();
+    const streak = Math.max(3, storage.currentStreak(store) || 7);
+    const raw = (kindOrId || 'random').toLowerCase();
+    let id;
+    if (raw === 'random' || raw === '1' || raw === 'true') {
+      const list = celebrations.listAnimations?.() || celebrations.banks?.goal || [];
+      id = list[Math.floor(Math.random() * list.length)] || 'goal';
+      celebrations.play(id, {
+        title: 'Preview',
+        subtitle: id.replace(/-/g, ' '),
+        streak,
+        stamp: 'WOW',
+        short: '★',
+      });
+    } else if (raw === 'goal' || raw === 'streak' || raw === 'milestone') {
+      id = celebrations.play(raw, {
+        title: raw === 'milestone' ? `${streak}-day streak` : raw === 'streak' ? `${streak}-day streak` : 'Goal met',
+        subtitle: 'Preview mode',
+        streak,
+        stamp: raw === 'goal' ? 'GOAL' : `${streak}★`,
+        short: raw === 'goal' ? '✓' : String(streak),
+      });
+    } else {
+      id = celebrations.play(raw, {
+        title: 'Preview',
+        subtitle: raw.replace(/-/g, ' '),
+        streak,
+        stamp: 'FX',
+        short: '★',
+      });
+    }
+    showToast(`Celebration: ${id || raw}`, { duration: 1800 });
+    haptic('success');
   }
 
   /** Lightning / electrolyte charge animation for Electrolytes logs. */
@@ -566,11 +663,19 @@
       status.classList.toggle('is-ely-charged', elyToday);
     }
 
+    // Goal-cross celebration is triggered from addWater (after entry toast),
+    // so we only track the edge here for delete / reload paths.
     if (reached && !lastGoalReached && total > 0) {
-      haptic('success');
-      showToast('Goal reached — nice work');
+      // e.g. undo restore that re-crosses the goal
+      if (render._fromUndo) {
+        haptic('success');
+        const streak = storage.currentStreak(store, { requireToday: true });
+        celebrateGoalMet(streak);
+      }
     }
     lastGoalReached = reached;
+
+    renderStreakPill();
 
     $$('[data-quick]').forEach((btn) => {
       const ml = Number(btn.dataset.quick);
@@ -704,21 +809,37 @@
    */
   function addWater(waterMl, opts = {}) {
     if (!waterMl || waterMl <= 0) return;
+    const beforeTotal = storage.totalForDay(store);
+    const wasReached = beforeTotal >= store.goalMl && store.goalMl > 0;
+
     const entry = storage.addEntry(store, waterMl, opts);
     const isEly = typeof entry.electrolytes === 'number' && entry.electrolytes >= 1;
+    const afterTotal = storage.totalForDay(store);
+    const nowReached = afterTotal >= store.goalMl && store.goalMl > 0;
+    const justMetGoal = nowReached && !wasReached && afterTotal > 0;
 
     if (isEly || opts.charged) {
-      haptic('success');
+      // Goal celebration owns the success haptic when both fire
+      if (!justMetGoal) haptic('success');
       pulseWave();
       playElectrolytesFx();
-    } else {
+    } else if (!justMetGoal) {
       haptic('medium');
+      pulseWave();
+    } else {
       pulseWave();
     }
     render();
 
     const water = formatAmountWithUnit(entry.ml, store.unit);
-    if (isEly) {
+    if (justMetGoal) {
+      // Celebration banner + toast replace the ordinary “+X water” toast
+      haptic('success');
+      const streak = storage.currentStreak(store, { requireToday: true });
+      // Slight delay so electrolyte lightning can start first if both apply
+      const delay = isEly || opts.charged ? 700 : 120;
+      setTimeout(() => celebrateGoalMet(streak), delay);
+    } else if (isEly) {
       const sticks = entry.electrolytes;
       const stickLabel = sticks === 1 ? '1 stick' : `${sticks} sticks`;
       showToast(`⚡ +${water} water · ${stickLabel}`, { duration: 2800 });
@@ -921,6 +1042,14 @@
         showToast(`Goal set to ${formatAmountWithUnit(store.goalMl, store.unit)}`);
         changed = true;
       }
+    }
+
+    // ?celebrate | ?celebrate=1 | ?celebrate=goal|streak|milestone|<animation-id>
+    if (params.has('celebrate') || params.has('fx')) {
+      const celeRaw = params.get('celebrate') || params.get('fx') || 'random';
+      // Defer so first paint / render settle first
+      setTimeout(() => previewCelebration(celeRaw || 'random'), 400);
+      changed = true;
     }
 
     const drinkId = params.get('drink');
@@ -1156,11 +1285,20 @@
 
     $('#undo-btn').addEventListener('click', () => {
       if (!undoState?.entry) return;
+      const before = storage.totalForDay(store);
+      const wasReached = before >= store.goalMl && store.goalMl > 0;
       storage.restoreEntry(store, undoState.entry);
       dismissUndo();
       haptic('light');
+      render._fromUndo = true;
       render();
-      showToast('Entry restored');
+      render._fromUndo = false;
+      const after = storage.totalForDay(store);
+      const nowReached = after >= store.goalMl && store.goalMl > 0;
+      // If undo didn't re-cross the goal, keep the restore toast
+      if (!(nowReached && !wasReached)) {
+        showToast('Entry restored');
+      }
     });
 
     $$('input[name="unit"]').forEach((r) => {
@@ -1185,6 +1323,13 @@
       render();
       showToast('Goal updated');
     });
+
+    const previewCeleBtn = $('#btn-preview-cele');
+    if (previewCeleBtn) {
+      previewCeleBtn.addEventListener('click', () => {
+        previewCelebration('random');
+      });
+    }
 
     $('#btn-clear-today').addEventListener('click', () => {
       if (!confirm('Clear all entries for today?')) return;
