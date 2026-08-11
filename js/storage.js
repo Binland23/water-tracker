@@ -11,6 +11,10 @@
       goalMl: DEFAULT_GOAL_ML,
       unit: 'oz',
       entries: [],
+      /** @type {Record<string, number>} achievementId → unlockedAt ms */
+      achievements: {},
+      /** Show Dew the water-drop mascot (default on). */
+      mascotEnabled: true,
     };
   }
 
@@ -54,11 +58,21 @@
       if (!data || data.version !== 1 || !Array.isArray(data.entries)) {
         return defaultStore();
       }
+      const achievements =
+        data.achievements && typeof data.achievements === 'object' && !Array.isArray(data.achievements)
+          ? Object.fromEntries(
+              Object.entries(data.achievements).filter(
+                ([id, ts]) => typeof id === 'string' && Number(ts) > 0
+              )
+            )
+          : {};
       return {
         version: 1,
         goalMl: Number(data.goalMl) > 0 ? Number(data.goalMl) : DEFAULT_GOAL_ML,
         unit: data.unit === 'ml' ? 'ml' : 'oz',
         entries: data.entries.map(normalizeEntry).filter(Boolean),
+        achievements,
+        mascotEnabled: data.mascotEnabled === false ? false : true,
       };
     } catch {
       return defaultStore();
@@ -129,6 +143,16 @@
 
   function clearAll(store) {
     store.entries = [];
+    // Keep achievements — history wipe shouldn't erase hard-earned badges.
+    // Callers can clear achievements separately if desired.
+    save(store);
+  }
+
+  /** Persist achievement map after unlocks (achievements.js mutates store.achievements). */
+  function saveAchievements(store) {
+    if (!store.achievements || typeof store.achievements !== 'object') {
+      store.achievements = {};
+    }
     save(store);
   }
 
@@ -139,6 +163,11 @@
 
   function setUnit(store, unit) {
     store.unit = unit === 'oz' ? 'oz' : 'ml';
+    save(store);
+  }
+
+  function setMascotEnabled(store, enabled) {
+    store.mascotEnabled = !!enabled;
     save(store);
   }
 
@@ -295,6 +324,7 @@
     clearAll,
     setGoal,
     setUnit,
+    setMascotEnabled,
     weekTotals,
     monthTotals,
     daysWithEntries,
@@ -302,5 +332,6 @@
     currentStreak,
     longestStreak,
     exportJson,
+    saveAchievements,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

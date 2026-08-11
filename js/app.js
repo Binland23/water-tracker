@@ -24,8 +24,12 @@
   } = window.WaterUtils;
   const storage = window.WaterStorage;
   const bgPhoto = window.WaterBgPhoto;
+  const achievements = window.WaterAchievements;
+  const mascotApi = window.WaterMascot;
 
   let store = storage.load();
+  if (!store.achievements) store.achievements = {};
+  if (typeof store.mascotEnabled !== 'boolean') store.mascotEnabled = true;
   /** @type {{ entry: object, timer: number } | null} */
   let undoState = null;
   let lastGoalReached = false;
@@ -36,6 +40,14 @@
   let activeDrinkId = null;
   /** Stick packs selected in the Electrolytes sheet */
   let electrolytesSticks = ELECTROLYTES.defaultSticks;
+  /** Queue of newly unlocked achievement ids to toast (one at a time) */
+  /** @type {string[]} */
+  let achievementToastQueue = [];
+  let achievementToastBusy = false;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let mascotIdleTimer = null;
+  /** Last mascot message text (avoid immediate repeats) */
+  let lastMascotMessage = '';
 
   /** Calendar view state */
   const calState = {
@@ -286,6 +298,265 @@
    * Milestones (3, 7, 14, 30…) use a bigger tier; multi-day streaks mix in streak FX.
    * @param {number} streak
    */
+  /**
+   * Evaluate achievements, persist unlocks, toast new badges.
+   * @param {{ photoSet?: boolean, goalChanged?: boolean, unitFlipped?: boolean, calendarOpened?: boolean, achievementsOpened?: boolean, silent?: boolean }} [ctx]
+   */
+  function processAchievements(ctx = {}) {
+    if (!achievements?.evaluate) return [];
+    const newly = achievements.evaluate(store, storage, ctx);
+    if (newly.length) {
+      storage.saveAchievements(store);
+      if (!ctx.silent) {
+        for (const id of newly) achievementToastQueue.push(id);
+        drainAchievementToasts();
+        // Dew celebrates badges after a beat (avoid fighting toast queue)
+        setTimeout(() => speakMascot({ event: 'achievement' }), 800);
+      }
+      updateAchievementsBadge();
+      if ($('#achievements-sheet')?.classList.contains('is-open')) {
+        renderAchievementsPage();
+      }
+    } else {
+      updateAchievementsBadge();
+    }
+    return newly;
+  }
+
+  function mascotContext(extra = {}) {
+    const goal = store.goalMl;
+    const total = storage.totalForDay(store);
+    const entries = storage.entriesForDay(store);
+    const reached = total >= goal && goal > 0 && total > 0;
+    const elyToday = entries.some((e) => typeof e.electrolytes === 'number' && e.electrolytes >= 1);
+    const streak = storage.currentStreak(store);
+    return {
+      total,
+      goal,
+      reached,
+      streak,
+      elyToday,
+      ...extra,
+    };
+  }
+
+  function isMascotEnabled() {
+    return store.mascotEnabled !== false;
+  }
+
+  function updateMascotVisibility() {
+    const root = $('#mascot');
+    if (!root) return;
+    const show = isMascotEnabled();
+    root.hidden = !show;
+    root.setAttribute('aria-hidden', show ? 'false' : 'true');
+    document.body.classList.toggle('has-mascot', show);
+    const toggle = $('#setting-mascot');
+    if (toggle && document.activeElement !== toggle) {
+      toggle.checked = show;
+    }
+    if (!show && mascotIdleTimer) {
+      clearTimeout(mascotIdleTimer);
+      mascotIdleTimer = null;
+    }
+  }
+
+  /**
+   * Show a mascot line + mood. Returns the message used.
+   * @param {{ event?: string, preferTip?: boolean, force?: boolean }} [opts]
+   */
+  function speakMascot(opts = {}) {
+    if (!isMascotEnabled() || !mascotApi) return '';
+    const root = $('#mascot');
+    const msgEl = $('#mascot-message');
+    const bubble = $('#mascot-bubble');
+    if (!root || !msgEl || root.hidden) return '';
+
+    const ctx = mascotContext(opts);
+    let text = mascotApi.messageFor(ctx);
+    // Avoid immediate identical repeats when user taps
+    if (opts.force && text === lastMascotMessage) {
+      text = mascotApi.messageFor({ ...ctx, preferTip: true, event: 'idle' });
+    }
+    lastMascotMessage = text;
+    msgEl.textContent = text;
+
+    const mood = mascotApi.moodFor(ctx);
+    root.dataset.mood = mood;
+    root.classList.remove('is-speaking', 'is-bounce');
+    void root.offsetWidth;
+    root.classList.add('is-speaking', 'is-bounce');
+    if (bubble) {
+      bubble.classList.add('is-visible');
+    }
+
+    // Clear bounce class after anim
+    clearTimeout(speakMascot._bounceT);
+    speakMascot._bounceT = setTimeout(() => root.classList.remove('is-bounce'), 520);
+
+    scheduleMascotIdle();
+    return text;
+  }
+
+  function scheduleMascotIdle() {
+    if (!isMascotEnabled()) return;
+    if (mascotIdleTimer) clearTimeout(mascotIdleTimer);
+    // Occasional idle chatter every ~45–75s while app is open
+    const delay = 45000 + Math.random() * 30000;
+    mascotIdleTimer = setTimeout(() => {
+      if (!isMascotEnabled()) return;
+      if (document.hidden) {
+        scheduleMascotIdle();
+        return;
+      }
+      // Don't chatter over open sheets
+      if (document.body.classList.contains('sheet-open')) {
+        scheduleMascotIdle();
+        return;
+      }
+      speakMascot({ event: 'idle', preferTip: Math.random() < 0.5 });
+    }, delay);
+  }
+
+  function setMascotEnabled(enabled) {
+    storage.setMascotEnabled(store, enabled);
+    updateMascotVisibility();
+    if (enabled) {
+      speakMascot({ event: 'open' });
+      showToast('Dew is back 💧');
+    } else {
+      showToast('Dew is hiding. Re-enable anytime in Settings.');
+    }
+  }
+
+  function drainAchievementToasts() {
+    if (achievementToastBusy) return;
+    const id = achievementToastQueue.shift();
+    if (!id) return;
+    const def = achievements.defById?.(id);
+    if (!def) {
+      drainAchievementToasts();
+      return;
+    }
+    achievementToastBusy = true;
+    haptic('success');
+    showToast(`${def.icon} ${def.title}`, { duration: 2600 });
+    setTimeout(() => {
+      achievementToastBusy = false;
+      drainAchievementToasts();
+    }, 2700);
+  }
+
+  function updateAchievementsBadge() {
+    const badge = $('#achievements-badge');
+    const btn = $('#btn-achievements');
+    if (!badge || !achievements) return;
+    const n = achievements.unlockedCount(store);
+    const total = achievements.totalCount();
+    if (n > 0) {
+      badge.hidden = false;
+      badge.textContent = String(n);
+    } else {
+      badge.hidden = true;
+    }
+    if (btn) {
+      btn.setAttribute('aria-label', `Achievements, ${n} of ${total} unlocked`);
+    }
+  }
+
+  function renderAchievementsPage() {
+    const list = $('#achievements-list');
+    const progress = $('#achievements-progress');
+    const fill = $('#achievements-progress-fill');
+    if (!list || !achievements) return;
+
+    const unlocked = achievements.unlockedCount(store);
+    const total = achievements.totalCount();
+    const pct = total > 0 ? Math.round((unlocked / total) * 100) : 0;
+    if (progress) {
+      progress.textContent = `${unlocked} / ${total} unlocked`;
+    }
+    if (fill) fill.style.width = `${pct}%`;
+
+    const groups = achievements.listForUi(store);
+    list.innerHTML = groups
+      .map((g) => {
+        const items = g.items
+          .map((a) => {
+            const locked = !a.unlocked;
+            const secretLocked = locked && a.secret;
+            const title = secretLocked ? '???' : escapeHtml(a.title);
+            const desc = secretLocked
+              ? 'Keep hydrating to discover this one.'
+              : escapeHtml(a.desc);
+            const icon = secretLocked ? '🔒' : a.icon;
+            const when =
+              a.unlocked && a.unlockedAt
+                ? `<span class="ach-card-when">${escapeHtml(
+                    new Date(a.unlockedAt).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
+                  )}</span>`
+                : '';
+            return `
+              <article class="ach-card${a.unlocked ? ' is-unlocked' : ' is-locked'}" role="listitem">
+                <span class="ach-card-icon" aria-hidden="true">${icon}</span>
+                <div class="ach-card-text">
+                  <h3 class="ach-card-title">${title}</h3>
+                  <p class="ach-card-desc">${desc}</p>
+                  ${when}
+                </div>
+                <span class="ach-card-status" aria-hidden="true">${a.unlocked ? '✓' : ''}</span>
+              </article>`;
+          })
+          .join('');
+        return `
+          <section class="ach-group">
+            <h3 class="ach-group-title">${escapeHtml(g.category)}</h3>
+            <div class="ach-group-grid">${items}</div>
+          </section>`;
+      })
+      .join('');
+  }
+
+  function openAchievements() {
+    openSheet('#achievements-sheet');
+    // Unlock "Trophy Tourist" when visiting the page
+    processAchievements({ achievementsOpened: true });
+    renderAchievementsPage();
+  }
+
+  /** Best-effort portrait lock for installed PWA / supported browsers. */
+  function lockPortraitOrientation() {
+    try {
+      const orient = screen.orientation || screen.mozOrientation || screen.msOrientation;
+      if (orient && typeof orient.lock === 'function') {
+        const p = orient.lock('portrait');
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      } else if (typeof screen.lockOrientation === 'function') {
+        screen.lockOrientation('portrait');
+      } else if (typeof screen.mozLockOrientation === 'function') {
+        screen.mozLockOrientation('portrait');
+      }
+    } catch {
+      /* iOS often rejects; CSS rotate-lock is the fallback */
+    }
+  }
+
+  function updateRotateLock() {
+    const el = $('#rotate-lock');
+    if (!el) return;
+    // Only nudge on phone-sized viewports (not iPad landscape multitasking intentionally)
+    const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+    const isPhone = Math.min(window.innerWidth, window.innerHeight) < 500;
+    const show = isLandscape && isPhone;
+    el.hidden = !show;
+    el.setAttribute('aria-hidden', show ? 'false' : 'true');
+    document.body.classList.toggle('is-landscape-locked', show);
+  }
+
   function celebrateGoalMet(streak) {
     const n = Math.max(1, streak || 1);
     let toastMsg = 'Goal reached — nice work';
@@ -745,6 +1016,8 @@
     });
 
     updateBgPhotoUi();
+    updateAchievementsBadge();
+    updateMascotVisibility();
   }
 
   function updateBgPhotoUi() {
@@ -783,6 +1056,7 @@
       updateBgPhotoUi();
       haptic('medium');
       showToast('Background photo set');
+      processAchievements({ photoSet: true });
     } catch (err) {
       console.error(err);
       const msg =
@@ -852,6 +1126,20 @@
     } else {
       showToast(`+${water} water`);
     }
+
+    // Dew reacts after the splash (goal / ely get special lines)
+    const mascotEvent = justMetGoal
+      ? 'goal'
+      : isEly
+        ? 'ely'
+        : entry.label && String(entry.label).toLowerCase() === 'owala'
+          ? 'owala'
+          : 'sip';
+    setTimeout(() => speakMascot({ event: mascotEvent }), justMetGoal ? 900 : isEly ? 700 : 350);
+
+    // Defer so entry toast / goal celebration can finish first
+    const achDelay = justMetGoal ? 3200 : isEly ? 2900 : 1600;
+    setTimeout(() => processAchievements(), achDelay);
     return entry;
   }
 
@@ -1016,6 +1304,7 @@
     haptic('warning');
     render();
     setUndo(removed);
+    // Don't revoke unlocks on delete — badges stay earned
   }
 
   function handleDeepLink() {
@@ -1091,6 +1380,11 @@
 
     if (params.get('open') === 'calendar') {
       openCalendar();
+      changed = true;
+    }
+
+    if (params.get('open') === 'achievements') {
+      openAchievements();
       changed = true;
     }
 
@@ -1207,6 +1501,18 @@
       openSheet('#settings-sheet');
     });
 
+    $('#setting-mascot')?.addEventListener('change', (e) => {
+      const on = !!e.target.checked;
+      setMascotEnabled(on);
+      haptic('light');
+    });
+
+    $('#mascot-btn')?.addEventListener('click', () => {
+      if (!isMascotEnabled()) return;
+      haptic('light');
+      speakMascot({ event: 'idle', preferTip: true, force: true });
+    });
+
     // Background photo — iOS requires a direct user gesture to open the picker
     const bgInput = $('#bg-photo-input');
     const bgChoose = $('#btn-bg-photo');
@@ -1233,9 +1539,13 @@
       bgPhoto.applyToDom(currentBgPhoto, dim);
     });
 
-    const openCal = () => openCalendar();
+    const openCal = () => {
+      openCalendar();
+      processAchievements({ calendarOpened: true });
+    };
     $('#btn-calendar')?.addEventListener('click', openCal);
     $('#btn-open-calendar')?.addEventListener('click', openCal);
+    $('#btn-achievements')?.addEventListener('click', () => openAchievements());
 
     $('#cal-prev')?.addEventListener('click', () => {
       calState.month -= 1;
@@ -1307,6 +1617,7 @@
           storage.setUnit(store, r.value);
           haptic('light');
           render();
+          processAchievements({ unitFlipped: true });
         }
       });
     });
@@ -1318,10 +1629,14 @@
         showToast('Enter a valid goal');
         return;
       }
+      const prev = store.goalMl;
       storage.setGoal(store, ml);
       haptic('medium');
       render();
       showToast('Goal updated');
+      if (prev !== store.goalMl) {
+        processAchievements({ goalChanged: true });
+      }
     });
 
     const previewCeleBtn = $('#btn-preview-cele');
@@ -1373,6 +1688,18 @@
       if (e.key === 'Escape') closeSheets();
     });
 
+    // Portrait lock + landscape overlay
+    lockPortraitOrientation();
+    updateRotateLock();
+    window.addEventListener('orientationchange', () => {
+      lockPortraitOrientation();
+      updateRotateLock();
+    });
+    window.addEventListener('resize', updateRotateLock);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') lockPortraitOrientation();
+    });
+
     setInterval(() => {
       const label = $('#date-label');
       if (label && label.textContent !== formatDayLabel(new Date())) {
@@ -1400,10 +1727,26 @@
     }
 
     render();
+    // Backfill achievements from existing history (silent — no toast flood on load)
+    processAchievements({
+      silent: true,
+      photoSet: Boolean(currentBgPhoto),
+    });
+    // Persist any silent backfills
+    if (store.achievements && Object.keys(store.achievements).length) {
+      storage.saveAchievements(store);
+    }
+    updateAchievementsBadge();
+    updateMascotVisibility();
+    if (isMascotEnabled()) {
+      // Small delay so first paint settles
+      setTimeout(() => speakMascot({ event: 'open' }), 480);
+    }
     handleDeepLink();
     window.addEventListener('pageshow', async (e) => {
       if (e.persisted) {
         store = storage.load();
+        if (!store.achievements) store.achievements = {};
         if (bgPhoto) {
           try {
             currentBgPhoto = await bgPhoto.initFromStorage();
@@ -1413,6 +1756,7 @@
         }
         handleDeepLink();
         render();
+        processAchievements({ silent: true, photoSet: Boolean(currentBgPhoto) });
       }
     });
   }

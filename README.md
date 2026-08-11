@@ -12,9 +12,12 @@ A calm, offline-first **water consumption app** for iPhone. It is a Progressive 
 - Custom amounts, unit toggle (ml ↔ fl oz)
 - Today’s log with delete + undo
 - 7-day week bars + **full month calendar** (tap a day for details)
+- **Achievements** — 40+ fun badges (streaks, Owala, electrolytes, lifetime liters, secrets) with a dedicated trophies page
+- **Dew** — a little water-drop mascot with tips & pep talks (toggle off in Settings)
 - **Custom background photo** from the iPhone Photos library (stored on-device)
 - Settings: goal, units, background photo, export JSON, clear data
 - Works **offline** after the first visit
+- **Portrait-first** on iPhone (manifest + best-effort lock; landscape shows a rotate nudge)
 - **Siri-ready** URL hooks (`?add=250`, etc.)
 
 ### Hydration factors
@@ -123,6 +126,8 @@ Replace `BASE` with your real URL, e.g.
 | Set goal to 2000 ml | `BASE?goal=2000` |
 | Set unit to oz | `BASE?unit=oz` |
 | Just open today | `BASE` or `BASE?open=today` |
+| Open achievements | `BASE?open=achievements` |
+| Open calendar | `BASE?open=calendar` |
 
 **Rules**
 
@@ -172,8 +177,10 @@ index.html          App shell
 styles.css          UI
 js/app.js           UI + deep links
 js/storage.js       localStorage model
+js/achievements.js  Achievement catalog + unlock rules
+js/mascot.js        Dew mascot messages + moods
 js/utils.js         Units / dates
-manifest.json       PWA manifest (standalone)
+manifest.json       PWA manifest (standalone, portrait)
 sw.js               Offline cache
 assets/icons/       App icons
 ```

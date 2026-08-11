@@ -144,6 +144,7 @@ button:active {
 }
 
 .icon-btn {
+  position: relative;
   width: 44px;
   height: 44px;
   border-radius: 14px;
@@ -159,6 +160,25 @@ button:active {
 .icon-btn:hover {
   color: var(--text);
   background: var(--surface-2);
+}
+
+.achievements-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f0c14a, #e8a020);
+  color: #1a1204;
+  font-size: 0.625rem;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
 }
 
 /* —— Hero / gauge —— */
@@ -1692,6 +1712,86 @@ body.electrolytes-charged {
   gap: 8px;
 }
 
+/* Settings toggle (Dew / mascot) */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toggle-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toggle-row-title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.toggle-row-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
+}
+
+.toggle-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.22s var(--ease-spring), background 0.2s var(--ease-out);
+}
+
+.toggle-input:checked + .toggle-switch {
+  background: color-mix(in srgb, var(--accent) 45%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.toggle-input:checked + .toggle-switch::after {
+  transform: translateX(20px);
+  background: var(--accent-strong);
+}
+
+.toggle-input:focus-visible + .toggle-switch {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .segmented {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2116,65 +2216,439 @@ body.electrolytes-charged {
   color: var(--text);
 }
 
-.achievements-head {
-  margin-bottom: 10px;
+/* —— Achievements page (sheet) —— */
+.achievements-body {
+  gap: 20px;
+  padding-bottom: 8px;
 }
 
-.badge-count {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.achievements-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.badge-chip {
+.achievements-summary {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+
+.achievements-progress {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.achievements-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  overflow: hidden;
+}
+
+.achievements-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-deep), var(--accent-strong));
+  transition: width 0.45s var(--ease-out);
+}
+
+.achievements-tagline {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.achievements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.ach-group-title {
+  margin: 0 0 10px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ach-group-grid {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  min-height: 48px;
-  padding: 8px 10px;
-  border-radius: 12px;
+}
+
+.ach-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
-  text-align: left;
-  opacity: 0.42;
-  filter: grayscale(0.7);
+  background: var(--surface);
   transition:
     opacity 0.2s var(--ease-out),
     filter 0.2s var(--ease-out),
     border-color 0.2s var(--ease-out),
-    transform 0.15s var(--ease-out);
+    background 0.2s var(--ease-out);
 }
 
-.badge-chip.is-unlocked {
+.ach-card.is-locked {
+  opacity: 0.55;
+  filter: grayscale(0.55);
+}
+
+.ach-card.is-unlocked {
   opacity: 1;
   filter: none;
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
 }
 
-.badge-chip:active {
-  transform: scale(0.97);
-}
-
-.badge-icon {
-  font-size: 1.15rem;
+.ach-card-icon {
+  font-size: 1.45rem;
   line-height: 1;
-  flex-shrink: 0;
+  width: 1.6em;
+  text-align: center;
+  margin-top: 2px;
 }
 
-.badge-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+.ach-card-text {
+  min-width: 0;
+}
+
+.ach-card-title {
+  margin: 0 0 3px;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
   color: var(--text);
   line-height: 1.25;
+}
+
+.ach-card-desc {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.ach-card-when {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+  letter-spacing: 0.02em;
+}
+
+.ach-card-status {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--success);
+  line-height: 1;
+  margin-top: 4px;
+  min-width: 1em;
+  text-align: center;
+}
+
+/* —— Portrait / landscape lock overlay —— */
+.rotate-lock {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(80% 60% at 50% 40%, rgba(61, 184, 212, 0.16), transparent 60%),
+    rgba(6, 16, 24, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.rotate-lock[hidden] {
+  display: none !important;
+}
+
+.rotate-lock-card {
+  max-width: 280px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.rotate-lock-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  animation: rotatePhone 1.6s var(--ease-out) infinite alternate;
+}
+
+.rotate-lock-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.rotate-lock-sub {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+@keyframes rotatePhone {
+  from {
+    transform: rotate(-12deg);
+  }
+  to {
+    transform: rotate(18deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotate-lock-icon {
+    animation: none;
+  }
+}
+
+body.is-landscape-locked .app,
+body.is-landscape-locked .sheet,
+body.is-landscape-locked .sheet-backdrop,
+body.is-landscape-locked .toast,
+body.is-landscape-locked .undo-bar,
+body.is-landscape-locked .mascot {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* —— Dew the mascot —— */
+.mascot {
+  position: fixed;
+  right: max(12px, var(--safe-right));
+  bottom: max(14px, var(--safe-bottom));
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: min(280px, calc(100vw - 24px));
+  pointer-events: none;
+}
+
+.mascot[hidden] {
+  display: none !important;
+}
+
+.mascot-bubble {
+  position: relative;
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: 16px 16px 6px 16px;
+  background: color-mix(in srgb, var(--bg-elevated) 92%, var(--accent));
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+  transition:
+    opacity 0.28s var(--ease-out),
+    transform 0.32s var(--ease-spring);
+  pointer-events: none;
+}
+
+.mascot-bubble.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.mascot-message {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  line-height: 1.4;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.mascot-bubble-tail {
+  position: absolute;
+  right: 18px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  transform: rotate(45deg);
+  border-radius: 0 0 3px 0;
+}
+
+.mascot-btn {
+  pointer-events: auto;
+  width: 64px;
+  height: 76px;
+  display: grid;
+  place-items: end center;
+  border-radius: 20px;
+  padding: 0;
+  background: transparent;
+  filter: drop-shadow(0 8px 16px rgba(10, 40, 55, 0.35));
+  transition: transform 0.2s var(--ease-out);
+}
+
+.mascot-btn:active {
+  transform: scale(0.94);
+}
+
+.mascot-svg {
+  display: block;
+  width: 56px;
+  height: 70px;
+  overflow: visible;
+}
+
+.mascot-body {
+  transform-origin: 32px 48px;
+}
+
+.mascot.is-bounce .mascot-svg {
+  animation: dewBounce 0.5s var(--ease-spring);
+}
+
+.mascot.is-speaking .mascot-body {
+  animation: dewWobble 2.4s var(--ease-out) infinite;
+}
+
+@keyframes dewBounce {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(-10px) scale(1.06);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dewWobble {
+  0%,
+  100% {
+    transform: rotate(-2deg) translateY(0);
+  }
+  50% {
+    transform: rotate(2.5deg) translateY(-2px);
+  }
+}
+
+/* Moods */
+.mascot[data-mood="cheer"] .mascot-sparkles,
+.mascot[data-mood="zap"] .mascot-sparkles {
+  opacity: 1;
+  animation: dewSpark 0.9s var(--ease-out);
+}
+
+.mascot[data-mood="zap"] .mascot-body {
+  filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.65));
+}
+
+.mascot[data-mood="sleepy"] .mascot-eye {
+  opacity: 0;
+}
+
+.mascot[data-mood="sleepy"] .mascot-eye-shine {
+  opacity: 0;
+}
+
+.mascot[data-mood="sleepy"] .mascot-lids {
+  opacity: 1;
+}
+
+.mascot .mascot-mouth-default {
+  opacity: 1;
+}
+
+.mascot .mascot-mouth-big,
+.mascot .mascot-mouth-sleepy {
+  opacity: 0;
+}
+
+.mascot[data-mood="cheer"] .mascot-mouth-default,
+.mascot[data-mood="happy"] .mascot-mouth-default,
+.mascot[data-mood="sleepy"] .mascot-mouth-default {
+  opacity: 0;
+}
+
+.mascot[data-mood="cheer"] .mascot-mouth-big,
+.mascot[data-mood="happy"] .mascot-mouth-big {
+  opacity: 1;
+}
+
+.mascot[data-mood="sleepy"] .mascot-mouth-sleepy {
+  opacity: 1;
+}
+
+.mascot[data-mood="cheer"] .mascot-cheek {
+  opacity: 0.7;
+}
+
+@keyframes dewSpark {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+
+/* Lift above home-indicator when log is long; stay clear of undo bar */
+body:not(.sheet-open) .mascot {
+  bottom: max(18px, calc(var(--safe-bottom) + 8px));
+}
+
+/* Don't cover open sheets awkwardly — tuck mascot lower opacity */
+body.sheet-open .mascot {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+body.sheet-open .mascot-btn {
+  pointer-events: none;
+}
+
+body.is-celebrating .mascot,
+body.electrolytes-charged .mascot {
+  opacity: 0.2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot.is-bounce .mascot-svg,
+  .mascot.is-speaking .mascot-body,
+  .mascot[data-mood="cheer"] .mascot-sparkles,
+  .mascot[data-mood="zap"] .mascot-sparkles {
+    animation: none;
+  }
+}
+
+body.has-photo-bg .mascot-bubble {
+  background: color-mix(in srgb, rgba(12, 28, 38, 0.88) 70%, var(--surface));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .fun-canvas {
@@ -2236,6 +2710,7 @@ body.has-photo-bg .log-empty,
 body.has-photo-bg .week-bars,
 body.has-photo-bg .status-chip,
 body.has-photo-bg .icon-btn,
+body.has-photo-bg .ach-card,
 body.has-photo-bg .custom-btn,
 body.has-photo-bg .fact-card,
 body.has-photo-bg .achievements-card {
