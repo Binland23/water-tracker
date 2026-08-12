@@ -1,26 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="112" fill="#0b1f2a"/>
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#5ec8e8"/>
-      <stop offset="100%" stop-color="#1a7a96"/>
+    <radialGradient id="sky" cx="50%" cy="28%" r="78%">
+      <stop offset="0%" stop-color="#1a5a6c"/>
+      <stop offset="55%" stop-color="#0c303c"/>
+      <stop offset="100%" stop-color="#07161d"/>
+    </radialGradient>
+    <linearGradient id="drop" x1="30%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#b8f4ff"/>
+      <stop offset="42%" stop-color="#3ec9e0"/>
+      <stop offset="100%" stop-color="#127a94"/>
     </linearGradient>
-    <linearGradient id="w" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#7ad4ec"/>
-      <stop offset="100%" stop-color="#2a9bb8"/>
+    <linearGradient id="sheen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  <!-- Droplet -->
-  <path
-    fill="url(#g)"
-    d="M256 96c0 0-96 120-96 200a96 96 0 0 0 192 0c0-80-96-200-96-200z"
-  />
-  <!-- Highlight -->
-  <path
-    fill="url(#w)"
-    opacity="0.55"
-    d="M256 128c0 0-64 88-64 152a64 64 0 0 0 56 63.5C220 310 208 268 208 236c0-44 48-108 48-108z"
-  />
-  <!-- Soft sheen -->
-  <ellipse cx="230" cy="220" rx="22" ry="32" fill="#fff" opacity="0.18"/>
+  <rect width="512" height="512" rx="114" fill="url(#sky)"/>
+  <path fill="url(#drop)" d="M256 86c0 0-110 138-110 228a110 110 0 0 0 220 0c0-90-110-228-110-228z"/>
+  <path fill="#7ee0ff" opacity="0.35" d="M256 124c0 0-72 100-72 172a72 72 0 0 0 62 71c-28-28-42-78-42-118 0-50 52-125 52-125z"/>
+  <ellipse cx="214" cy="232" rx="28" ry="42" fill="url(#sheen)" transform="rotate(-22 214 232)"/>
+  <circle cx="338" cy="156" r="7" fill="#f0c14a" opacity="0.9"/>
 </svg>

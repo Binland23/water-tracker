@@ -1,24 +1,30 @@
 # Water Tracker
 
-A calm, offline-first **water consumption app** for iPhone. It is a Progressive Web App (PWA): install it from Safari to get a home-screen icon and full-screen UI—no App Store required. **Siri Shortcuts** can open deep links to log water by voice.
+A calm, offline-first **hydration app** for iPhone. It is a Progressive Web App (PWA): install it from Safari to get a home-screen icon and full-screen UI—no App Store required. **Siri Shortcuts** can open deep links to log water by voice.
+
+This is **Water Tracker 2.0** in the same repo and live URL. Existing on-phone data migrates automatically (`water-tracker:v1` → `water-tracker:v2`). Background photos stay in the same IndexedDB store.
 
 ## Features
 
-- Daily goal progress (ring + animated water simulation)
-- **Owala** one-tap full bottle (24 oz, 100% water)
+- Daily goal progress (ring + animated water well)
+- **Hydration pace** — ahead / on track / behind from wake to wind-down
+- **Owala** one-tap full bottle (24 oz, 100% water) plus **custom bottles**
 - **ELECTROLYTES** — log pour + stick packs (water counts 1:1; lightning charge FX)
-- Standard drinks with **hydration factors** (only part of coffee/soda/etc. counts as water)
+- Standard drinks with **hydration factors**, plus **custom drinks**
 - Quick add: 250 / 500 / 750 ml pure water (or oz equivalents)
-- Custom amounts, unit toggle (ml ↔ fl oz)
+- Custom amounts, unit toggle (ml ↔ fl oz), **edit** amount/time
 - Today’s log with delete + undo
-- 7-day week bars + **full month calendar** (tap a day for details)
-- **Achievements** — 40+ fun badges (streaks, Owala, electrolytes, lifetime liters, secrets) with a dedicated trophies page
-- **Dew** — a little water-drop mascot with tips & pep talks (toggle off in Settings)
+- Hourly sip timeline
+- 7-day week bars + **full month calendar**
+- **Insights** — week score, drink mix, best hours, lifetime liters, streaks
+- **Achievements** — 68 badges (streaks, Owala, electrolytes, lifetime, Dew, secrets)
+- **Dew** — tap, squeeze, or fling the water-drop mascot (toggle off in Settings)
 - **Custom background photo** from the iPhone Photos library (stored on-device)
-- Settings: goal, units, background photo, export JSON, clear data
+- Settings: goal lab, units, theme (system/dark/light), reminders, sip sounds, import/export, clear data
 - Works **offline** after the first visit
 - **Portrait-first** on iPhone (manifest + best-effort lock; landscape shows a rotate nudge)
-- **Siri-ready** URL hooks (`?add=250`, etc.)
+- **Siri-ready** URL hooks (`?add=250`, `?drink=owala`, `?open=insights`, etc.)
+- Home-screen **PWA shortcuts** (Owala / 16 oz / electrolytes)
 
 ### Hydration factors
 
@@ -26,11 +32,10 @@ Goals track **effective water**, not full poured volume:
 
 | Drink | Counts as water |
 |-------|-----------------|
-| Water / Owala | 100% |
+| Water / any bottle | 100% |
 | Iced latte (Vertuo Melozio + milk, 21 oz glass) | 89% |
 | Tea, sports drink | 90% |
-| Juice | 85% |
-| Fruit smoothie | 85% |
+| Juice / fruit smoothie | 85% |
 | Coffee | 80% |
 | Soda | 75% |
 | **ELECTROLYTES** mix | **100%** of poured volume (same as water) + stick tag |
@@ -45,7 +50,7 @@ Tap **ELECTROLYTES**, enter how much you poured (default 16 oz), and how many st
 - **Sticks** are logged as metadata (e.g. “1 stick · ELECTROLYTES”).
 - Logging plays a short **lightning / charge** animation and marks the day as charged.
 
-All data stays **on your device** (browser `localStorage`). Nothing is uploaded.
+All data stays **on your device** (browser `localStorage` + IndexedDB for photos). Nothing is uploaded.
 
 ---
 
@@ -54,6 +59,8 @@ All data stays **on your device** (browser `localStorage`). Nothing is uploaded.
 **Easiest:** double-click `index.html` — the app should work in Safari or Chrome right away.
 
 **Or** double-click **`Open Water Tracker.command`** (first time: right-click → Open if macOS blocks it). That starts a tiny local server and opens the app (needed for offline install / service worker testing).
+
+On Windows, run **`Open Water Tracker.ps1`**.
 
 Manual server (optional):
 
@@ -78,7 +85,7 @@ Then open [http://localhost:8080](http://localhost:8080).
 4. Name it **Water** (or whatever you like) → **Add**.
 5. Open it from the home screen — it launches full-screen without Safari chrome.
 
-That home-screen icon is your “app.”
+That home-screen icon is your “app.” Already installed? Open it once after this 2.0 ship so the service worker can pick up `water-tracker-v24`.
 
 ---
 
@@ -112,11 +119,12 @@ Shortcuts open your live app URL with query parameters. The app logs the water, 
 ### Deep link reference
 
 Replace `BASE` with your real URL, e.g.  
-`https://you.github.io/water-tracker/`
+`https://binland23.github.io/water-tracker/`
 
 | Goal | URL |
 |------|-----|
 | Full Owala (24 oz) | `BASE?drink=owala` |
+| Any custom bottle | `BASE?drink=BOTTLE_ID` |
 | ELECTROLYTES (16 oz, 1 stick) | `BASE?drink=electrolytes` |
 | ELECTROLYTES custom | `BASE?electrolytes=2&add=20&unit=oz` (2 sticks in 20 oz) |
 | Coffee / tea / soda… | `BASE?drink=coffee` (also: `tea`, `soda`, `juice`, `smoothie`, `sports`, `iced-latte`) |
@@ -126,6 +134,7 @@ Replace `BASE` with your real URL, e.g.
 | Set goal to 2000 ml | `BASE?goal=2000` |
 | Set unit to oz | `BASE?unit=oz` |
 | Just open today | `BASE` or `BASE?open=today` |
+| Open insights | `BASE?open=insights` |
 | Open achievements | `BASE?open=achievements` |
 | Open calendar | `BASE?open=calendar` |
 
@@ -167,20 +176,27 @@ Replace `BASE` with your real URL, e.g.
 - No accounts, no analytics, no server.
 - Clearing Safari / website data for this origin **deletes** your history.
 - Use **Settings → Export data** to copy a JSON backup before wiping the phone.
+- **Settings → Import backup** accepts a 2.0 export or an original v1 JSON file.
 
 ---
 
 ## Project layout
 
 ```
-index.html          App shell
-styles.css          UI
-js/app.js           UI + deep links
-js/storage.js       localStorage model
-js/achievements.js  Achievement catalog + unlock rules
-js/mascot.js        Dew mascot messages + moods
-js/utils.js         Units / dates
-manifest.json       PWA manifest (standalone, portrait)
+index.html          App shell + Dew + sheets
+styles.css          2.0 UI
+css/fx.css          Dew, celebrations, electrolytes lightning, photo layer
+js/app.js           Views, logging, deep links
+js/storage.js       v2 model + v1 migration
+js/utils.js         Units, pace, drink math
+js/achievements.js  Badge catalog
+js/mascot.js        Dew
+js/celebrations.js  Goal / streak FX
+js/bg-photo.js      IndexedDB photo
+js/haptics.js       Vibration + iOS Taptic
+js/sound.js         Optional sip tones
+js/reminders.js     In-app nudges
+manifest.json       PWA (standalone, portrait, shortcuts)
 sw.js               Offline cache
 assets/icons/       App icons
 ```

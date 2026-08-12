@@ -1,22 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="system">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
-    <meta name="description" content="Track your daily water intake. Offline-ready for iPhone." />
-    <meta name="theme-color" content="#0b1f2a" />
-    <meta name="theme-color" content="#f3f8fa" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0b1f2a" media="(prefers-color-scheme: dark)" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Water Tracker 2.0 — daily hydration, bottles, electrolytes, Dew, and insights. Offline-ready for iPhone." />
+    <meta name="theme-color" content="#07161d" />
+    <meta name="theme-color" content="#f2f7f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#07161d" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Water" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <!-- Prefer portrait; iOS home-screen PWAs also read orientation from manifest.json -->
     <meta name="screen-orientation" content="portrait" />
-    <title>Water</title>
+    <title>Water 2.0</title>
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
@@ -27,46 +23,44 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="css/fx.css" />
     <script>
-      // iOS standalone often reports 0 safe-area; class lets CSS pad past the island glass.
       (function () {
         var standalone =
           window.navigator.standalone === true ||
           window.matchMedia('(display-mode: standalone)').matches ||
           window.matchMedia('(display-mode: fullscreen)').matches;
         if (standalone) document.documentElement.classList.add('is-standalone');
-        var light = window.matchMedia('(prefers-color-scheme: light)').matches;
-        var meta = document.querySelector('meta[name="theme-color"]:not([media])');
-        if (meta) meta.setAttribute('content', light ? '#f3f8fa' : '#0b1f2a');
+        try {
+          var raw = localStorage.getItem('water-tracker:v2');
+          var theme = 'system';
+          if (raw) {
+            var data = JSON.parse(raw);
+            if (data && (data.theme === 'dark' || data.theme === 'light' || data.theme === 'system')) {
+              theme = data.theme;
+            }
+          }
+          document.documentElement.setAttribute('data-theme', theme);
+          var light =
+            theme === 'light' ||
+            (theme !== 'dark' && window.matchMedia('(prefers-color-scheme: light)').matches);
+          var meta = document.querySelector('meta[name="theme-color"]:not([media])');
+          if (meta) meta.setAttribute('content', light ? '#f2f7f9' : '#07161d');
+        } catch (e) {}
       })();
     </script>
   </head>
   <body>
-    <!-- Solid strip under the iOS status bar so Liquid Glass doesn't frost the header -->
     <div class="status-safe" aria-hidden="true"></div>
-    <!-- Fixed photo layer (iOS-safe; not background-attachment: fixed) -->
     <div id="photo-bg-layer" class="photo-bg-layer" hidden aria-hidden="true"></div>
 
     <div class="app">
       <header class="top-bar">
         <div class="top-bar-text">
-          <p class="eyebrow">Today</p>
+          <p class="kicker" id="view-kicker">Today</p>
           <h1 id="date-label" class="date-label">—</h1>
         </div>
         <div class="top-bar-actions">
-          <button type="button" id="btn-achievements" class="icon-btn" aria-label="Achievements">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-              <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z" stroke-linejoin="round" />
-              <path d="M7 6H5a2 2 0 0 0 2 4M17 6h2a2 2 0 0 1-2 4" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <span id="achievements-badge" class="achievements-badge" hidden>0</span>
-          </button>
-          <button type="button" id="btn-calendar" class="icon-btn" aria-label="Calendar">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-              <rect x="3" y="5" width="18" height="16" rx="2" />
-              <path d="M3 10h18M8 3v4M16 3v4" stroke-linecap="round" />
-            </svg>
-          </button>
           <button type="button" id="btn-settings" class="icon-btn" aria-label="Settings">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
               <circle cx="12" cy="12" r="3" />
@@ -77,267 +71,311 @@
       </header>
 
       <main class="main">
-        <section class="hero" aria-label="Daily progress">
-          <div class="gauge-wrap">
-            <svg class="gauge" viewBox="0 0 200 200" aria-hidden="true">
-              <defs>
-                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#7ee0ff" />
-                  <stop offset="40%" stop-color="#3db8d4" />
-                  <stop offset="100%" stop-color="#1a7a96" />
-                </linearGradient>
-                <linearGradient id="waterDeep" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#5ec8e8" stop-opacity="0.55" />
-                  <stop offset="45%" stop-color="#2a9bb8" stop-opacity="0.82" />
-                  <stop offset="100%" stop-color="#0d5a72" stop-opacity="0.95" />
-                </linearGradient>
-                <linearGradient id="waterSurface" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#b8f0ff" stop-opacity="0.9" />
-                  <stop offset="100%" stop-color="#5ec8e8" stop-opacity="0.35" />
-                </linearGradient>
-                <linearGradient id="causticGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
-                  <stop offset="40%" stop-color="#e0f9ff" stop-opacity="0.35" />
-                  <stop offset="70%" stop-color="#ffffff" stop-opacity="0" />
-                  <stop offset="100%" stop-color="#a8e8ff" stop-opacity="0.2" />
-                </linearGradient>
-                <radialGradient id="wellGlow" cx="50%" cy="40%" r="60%">
-                  <stop offset="0%" stop-color="#1a4a5c" />
-                  <stop offset="100%" stop-color="#0a1c26" />
-                </radialGradient>
-                <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="1.2" result="b" />
-                  <feMerge>
-                    <feMergeNode in="b" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-                <clipPath id="waveClip">
-                  <circle cx="100" cy="100" r="72" />
-                </clipPath>
-              </defs>
-
-              <!-- Ring starts at top (12 o'clock) -->
-              <g class="gauge-rings" transform="rotate(-90 100 100)">
-                <circle class="gauge-track" cx="100" cy="100" r="88" />
-                <circle id="progress-ring" class="gauge-ring" cx="100" cy="100" r="88" />
-              </g>
-
-              <g clip-path="url(#waveClip)">
-                <circle class="gauge-well" cx="100" cy="100" r="72" fill="url(#wellGlow)" />
-
-                <!-- Liquid stack: surface at y=100; JS translates so 0%=empty, 100%=brim full -->
-                <g id="wave-fill" class="wave-fill">
-                  <!-- Tall body so the well stays solid when lifted to full -->
-                  <rect class="wave-body" x="18" y="100" width="164" height="200" fill="url(#waterDeep)" />
-
-                  <!-- Mid shimmer bands -->
-                  <g class="caustics" opacity="0.55">
-                    <path
-                      class="caustic caustic-a"
-                      d="M18 130 Q50 118 80 132 T140 128 T182 134 V300 H18 Z"
-                      fill="url(#causticGrad)"
-                    />
-                    <path
-                      class="caustic caustic-b"
-                      d="M18 150 Q60 140 100 152 T160 148 T182 154 V300 H18 Z"
-                      fill="url(#causticGrad)"
-                    />
-                  </g>
-
-                  <!-- Layered surface waves -->
-                  <path
-                    class="wave wave-c"
-                    d="M18 104 Q40 92 60 104 T100 104 T140 104 T182 104 V300 H18 Z"
-                    fill="rgba(46, 160, 190, 0.45)"
-                  />
-                  <path
-                    class="wave wave-b"
-                    d="M18 102 Q42 114 64 102 T108 102 T152 102 T182 102 V300 H18 Z"
-                    fill="rgba(94, 200, 232, 0.4)"
-                  />
-                  <path
-                    class="wave wave-a"
-                    d="M18 100 Q44 86 68 100 T116 100 T164 100 T182 100 V300 H18 Z"
-                    fill="url(#waterSurface)"
-                    filter="url(#softGlow)"
-                  />
-
-                  <!-- Bright crest highlight -->
-                  <path
-                    class="wave-crest"
-                    d="M18 100 Q44 88 68 100 T116 100 T164 100 T182 100"
-                    fill="none"
-                    stroke="rgba(230, 250, 255, 0.65)"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                  />
-
-                  <!-- Rising bubbles -->
-                  <g class="bubbles" fill="rgba(220, 245, 255, 0.55)">
-                    <circle class="bubble b1" cx="55" cy="160" r="2.2" />
-                    <circle class="bubble b2" cx="78" cy="175" r="1.6" />
-                    <circle class="bubble b3" cx="120" cy="155" r="2.8" />
-                    <circle class="bubble b4" cx="145" cy="180" r="1.8" />
-                    <circle class="bubble b5" cx="95" cy="190" r="1.4" />
-                    <circle class="bubble b6" cx="68" cy="148" r="1.2" />
-                    <circle class="bubble b7" cx="132" cy="168" r="2" />
-                  </g>
+        <!-- TODAY -->
+        <section id="view-today" class="app-view" data-view="today" aria-label="Today">
+          <section class="hero" aria-label="Daily progress">
+            <div class="gauge-wrap">
+              <svg class="gauge" viewBox="0 0 200 200" aria-hidden="true">
+                <defs>
+                  <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#7ee0ff" />
+                    <stop offset="40%" stop-color="#3ec9e0" />
+                    <stop offset="100%" stop-color="#1488a4" />
+                  </linearGradient>
+                  <linearGradient id="waterDeep" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#5ec8e8" stop-opacity="0.55" />
+                    <stop offset="45%" stop-color="#2a9bb8" stop-opacity="0.82" />
+                    <stop offset="100%" stop-color="#0d5a72" stop-opacity="0.95" />
+                  </linearGradient>
+                  <linearGradient id="waterSurface" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#b8f0ff" stop-opacity="0.9" />
+                    <stop offset="100%" stop-color="#5ec8e8" stop-opacity="0.35" />
+                  </linearGradient>
+                  <linearGradient id="causticGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
+                    <stop offset="40%" stop-color="#e0f9ff" stop-opacity="0.35" />
+                    <stop offset="70%" stop-color="#ffffff" stop-opacity="0" />
+                    <stop offset="100%" stop-color="#a8e8ff" stop-opacity="0.2" />
+                  </linearGradient>
+                  <radialGradient id="wellGlow" cx="50%" cy="40%" r="60%">
+                    <stop offset="0%" stop-color="#1a4a5c" />
+                    <stop offset="100%" stop-color="#0a1c26" />
+                  </radialGradient>
+                  <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="1.2" result="b" />
+                    <feMerge>
+                      <feMergeNode in="b" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                  <clipPath id="waveClip">
+                    <circle cx="100" cy="100" r="72" />
+                  </clipPath>
+                </defs>
+                <g class="gauge-rings" transform="rotate(-90 100 100)">
+                  <circle class="gauge-track" cx="100" cy="100" r="88" />
+                  <circle id="progress-ring" class="gauge-ring" cx="100" cy="100" r="88" />
                 </g>
-
-                <!-- Inner glass rim reflection -->
-                <circle
-                  cx="100"
-                  cy="100"
-                  r="70"
-                  fill="none"
-                  stroke="rgba(180, 230, 245, 0.12)"
-                  stroke-width="3"
-                />
-                <ellipse
-                  class="well-shine"
-                  cx="78"
-                  cy="68"
-                  rx="18"
-                  ry="10"
-                  fill="rgba(255, 255, 255, 0.08)"
-                  transform="rotate(-28 78 68)"
-                />
-              </g>
-            </svg>
-
-            <div class="gauge-center">
-              <div class="gauge-readout">
-                <p class="total-line">
-                  <span id="total-value" class="total-value">0</span>
-                  <span id="total-unit" class="total-unit">oz</span>
-                </p>
-                <p id="goal-caption" class="goal-caption">of 68 oz goal</p>
-                <p id="pct-label" class="pct-label">0%</p>
+                <g clip-path="url(#waveClip)">
+                  <circle class="gauge-well" cx="100" cy="100" r="72" fill="url(#wellGlow)" />
+                  <g id="wave-fill" class="wave-fill">
+                    <rect class="wave-body" x="18" y="100" width="164" height="200" fill="url(#waterDeep)" />
+                    <g class="caustics" opacity="0.55">
+                      <path class="caustic caustic-a" d="M18 130 Q50 118 80 132 T140 128 T182 134 V300 H18 Z" fill="url(#causticGrad)" />
+                      <path class="caustic caustic-b" d="M18 150 Q60 140 100 152 T160 148 T182 154 V300 H18 Z" fill="url(#causticGrad)" />
+                    </g>
+                    <path class="wave wave-c" d="M18 104 Q40 92 60 104 T100 104 T140 104 T182 104 V300 H18 Z" fill="rgba(46, 160, 190, 0.45)" />
+                    <path class="wave wave-b" d="M18 102 Q42 114 64 102 T108 102 T152 102 T182 102 V300 H18 Z" fill="rgba(94, 200, 232, 0.4)" />
+                    <path class="wave wave-a" d="M18 100 Q44 86 68 100 T116 100 T164 100 T182 100 V300 H18 Z" fill="url(#waterSurface)" filter="url(#softGlow)" />
+                    <path class="wave-crest" d="M18 100 Q44 88 68 100 T116 100 T164 100 T182 100" fill="none" stroke="rgba(230, 250, 255, 0.65)" stroke-width="1.5" stroke-linecap="round" />
+                    <g class="bubbles" fill="rgba(220, 245, 255, 0.55)">
+                      <circle class="bubble b1" cx="55" cy="160" r="2.2" />
+                      <circle class="bubble b2" cx="78" cy="175" r="1.6" />
+                      <circle class="bubble b3" cx="120" cy="155" r="2.8" />
+                      <circle class="bubble b4" cx="145" cy="180" r="1.8" />
+                      <circle class="bubble b5" cx="95" cy="190" r="1.4" />
+                      <circle class="bubble b6" cx="68" cy="148" r="1.2" />
+                      <circle class="bubble b7" cx="132" cy="168" r="2" />
+                    </g>
+                  </g>
+                  <circle cx="100" cy="100" r="70" fill="none" stroke="rgba(180, 230, 245, 0.12)" stroke-width="3" />
+                  <ellipse class="well-shine" cx="78" cy="68" rx="18" ry="10" fill="rgba(255,255,255,0.08)" transform="rotate(-28 78 68)" />
+                </g>
+              </svg>
+              <div class="gauge-center">
+                <div class="gauge-readout">
+                  <p class="total-line">
+                    <span id="total-value" class="total-value">0</span>
+                    <span id="total-unit" class="total-unit">oz</span>
+                  </p>
+                  <p id="goal-caption" class="goal-caption">of 68 oz goal</p>
+                  <p id="pct-label" class="pct-label">0%</p>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="hero-meta">
-            <p id="status-chip" class="status-chip" data-state="empty">Ready when you are</p>
-            <div id="streak-pill" class="streak-pill" hidden>
-              <span class="streak-fire" aria-hidden="true">🔥</span>
-              <span id="streak-value" class="streak-value">0</span>
-              <span class="streak-label">day streak</span>
+            <div class="hero-meta">
+              <p id="status-chip" class="status-chip" data-state="empty">Ready when you are</p>
+              <div id="streak-pill" class="streak-pill" hidden>
+                <span class="streak-fire" aria-hidden="true">🔥</span>
+                <span id="streak-value" class="streak-value">0</span>
+                <span class="streak-label">day streak</span>
+              </div>
             </div>
-          </div>
+            <div id="pace-card" class="pace-card" aria-live="polite">
+              <div class="pace-head">
+                <span id="pace-label" class="pace-label">On track</span>
+                <span id="pace-meta" class="pace-meta">—</span>
+              </div>
+              <div class="pace-track" aria-hidden="true">
+                <div id="pace-expected" class="pace-expected"></div>
+                <div id="pace-fill" class="pace-fill"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="quick-section" aria-label="Add water">
+            <div id="bottles-row" class="bottles-row"></div>
+
+            <button type="button" id="btn-electrolytes" class="electrolytes-btn" aria-label="Log ELECTROLYTES mix — water plus stick packs">
+              <span class="electrolytes-btn-mark" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                  <path d="M13 2L4 14h7l-1 8 10-14h-7l0-6z" fill="currentColor" stroke="currentColor" stroke-width="0.5" stroke-linejoin="round" />
+                </svg>
+              </span>
+              <span class="electrolytes-btn-text">
+                <span class="electrolytes-btn-title">ELECTROLYTES</span>
+                <span class="electrolytes-btn-sub">Water + sticks · lightning charge</span>
+              </span>
+              <span class="electrolytes-btn-bolt" aria-hidden="true">⚡</span>
+            </button>
+
+            <div class="quick-row">
+              <button type="button" class="quick-btn" data-quick="250">
+                <span class="quick-amount">+8.5</span>
+                <span class="quick-unit">oz water</span>
+              </button>
+              <button type="button" class="quick-btn quick-btn-primary" data-quick="500">
+                <span class="quick-amount">+17</span>
+                <span class="quick-unit">oz water</span>
+              </button>
+              <button type="button" class="quick-btn" data-quick="750">
+                <span class="quick-amount">+25</span>
+                <span class="quick-unit">oz water</span>
+              </button>
+            </div>
+
+            <div class="drinks-block">
+              <div class="drinks-label-row">
+                <p class="drinks-label">Other drinks</p>
+                <button type="button" id="btn-add-drink" class="link-btn">Add drink</button>
+              </div>
+              <div id="drinks-grid" class="drinks-grid" role="group" aria-label="Drinks with hydration factors"></div>
+            </div>
+
+            <button type="button" id="btn-custom" class="custom-btn">Custom amount</button>
+          </section>
+
+          <section class="week-section" aria-label="Last 7 days">
+            <div class="section-head">
+              <h2>This week</h2>
+              <button type="button" id="btn-open-insights" class="link-btn">Insights</button>
+            </div>
+            <div id="week-bars" class="week-bars"></div>
+          </section>
+
+          <section class="timeline-section" aria-label="Today by hour">
+            <div class="section-head">
+              <h2>Today’s rhythm</h2>
+            </div>
+            <div id="hour-timeline" class="hour-timeline" role="img" aria-label="Hourly intake"></div>
+          </section>
+
+          <section class="log-section" aria-label="Today’s log">
+            <div class="section-head">
+              <h2>Today</h2>
+            </div>
+            <p id="log-empty" class="log-empty">No drinks yet. Tap a bottle or size above.</p>
+            <ul id="log-list" class="log-list"></ul>
+          </section>
         </section>
 
-        <section class="quick-section" aria-label="Add water">
-          <!-- Featured: full Owala bottle (24 oz) -->
-          <button
-            type="button"
-            id="btn-owala"
-            class="owala-btn"
-            data-drink="owala"
-            aria-label="Add full Owala bottle, 24 ounces of water"
-          >
-            <span class="owala-btn-mark" aria-hidden="true">
-              <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                <path
-                  d="M12 4h8l1 3v2c3 1 5 4 5 8v7a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4v-7c0-4 2-7 5-8V7l1-3z"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  stroke-linejoin="round"
-                />
-                <path d="M11 14h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+        <!-- INSIGHTS -->
+        <section id="view-insights" class="app-view" data-view="insights" hidden aria-label="Insights">
+          <div class="stat-grid">
+            <article class="stat-card">
+              <p id="stat-streak" class="stat-value">0</p>
+              <p class="stat-label">Current streak</p>
+            </article>
+            <article class="stat-card">
+              <p id="stat-longest" class="stat-value">0</p>
+              <p class="stat-label">Longest streak</p>
+            </article>
+            <article class="stat-card">
+              <p id="stat-week" class="stat-value">0/7</p>
+              <p class="stat-label">Goals this week</p>
+            </article>
+            <article class="stat-card">
+              <p id="stat-life" class="stat-value">0 L</p>
+              <p class="stat-label">Lifetime water</p>
+            </article>
+          </div>
+
+          <section class="insight-block">
+            <div class="section-head">
+              <h2>Week volume</h2>
+              <p id="week-volume-meta" class="insight-note">—</p>
+            </div>
+            <div id="insight-week-bars" class="week-bars"></div>
+          </section>
+
+          <section class="insight-block">
+            <div class="section-head">
+              <h2>This week’s mix</h2>
+            </div>
+            <div id="mix-list" class="mix-list"></div>
+            <p id="mix-empty" class="log-empty" hidden>Log a few drinks to see the mix.</p>
+          </section>
+
+          <section class="insight-block">
+            <div class="section-head">
+              <h2>Best sipping hours</h2>
+            </div>
+            <div id="insight-hours" class="hour-timeline hour-timeline-tall"></div>
+          </section>
+
+          <p class="insight-footnote">
+            Effective water only — coffee and soda count a portion, just like on the Today tab.
+          </p>
+        </section>
+
+        <!-- CALENDAR -->
+        <section id="view-calendar" class="app-view" data-view="calendar" hidden aria-label="Calendar">
+          <div class="cal-nav">
+            <button type="button" id="cal-prev" class="icon-btn" aria-label="Previous month">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
-            </span>
-            <span class="owala-btn-text">
-              <span class="owala-btn-title">Owala</span>
-              <span class="owala-btn-sub">Full bottle · <span data-drink-amount>24 oz water</span></span>
-            </span>
-            <span class="owala-btn-plus" aria-hidden="true">+</span>
-          </button>
-
-          <!-- Electrolytes: water 1:1 + stick tag + lightning FX -->
-          <button
-            type="button"
-            id="btn-electrolytes"
-            class="electrolytes-btn"
-            aria-label="Log ELECTROLYTES mix — water plus stick packs"
-          >
-            <span class="electrolytes-btn-mark" aria-hidden="true">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M13 2L4 14h7l-1 8 10-14h-7l0-6z"
-                  fill="currentColor"
-                  stroke="currentColor"
-                  stroke-width="0.5"
-                  stroke-linejoin="round"
-                />
+            </button>
+            <h3 id="cal-month-label" class="cal-month-label">—</h3>
+            <button type="button" id="cal-next" class="icon-btn" aria-label="Next month">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
-            </span>
-            <span class="electrolytes-btn-text">
-              <span class="electrolytes-btn-title">ELECTROLYTES</span>
-              <span class="electrolytes-btn-sub">Water + sticks · lightning charge</span>
-            </span>
-            <span class="electrolytes-btn-bolt" aria-hidden="true">⚡</span>
-          </button>
-
-          <div class="quick-row">
-            <button type="button" class="quick-btn" data-quick="250">
-              <span class="quick-amount">+8.5</span>
-              <span class="quick-unit">oz water</span>
-            </button>
-            <button type="button" class="quick-btn quick-btn-primary" data-quick="500">
-              <span class="quick-amount">+17</span>
-              <span class="quick-unit">oz water</span>
-            </button>
-            <button type="button" class="quick-btn" data-quick="750">
-              <span class="quick-amount">+25</span>
-              <span class="quick-unit">oz water</span>
             </button>
           </div>
-
-          <div class="drinks-block">
-            <div class="drinks-label-row">
-              <p class="drinks-label">Other drinks</p>
-              <p class="drinks-hint">Tap → 8 oz or custom</p>
-            </div>
-            <div id="drinks-grid" class="drinks-grid" role="group" aria-label="Standard drinks with hydration factors">
-              <!-- filled by app.js -->
-            </div>
+          <div class="cal-weekdays" aria-hidden="true">
+            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
           </div>
-
-          <button type="button" id="btn-custom" class="custom-btn">Custom amount</button>
+          <div id="cal-grid" class="cal-grid" role="grid" aria-label="Month days"></div>
+          <div class="cal-legend">
+            <span class="cal-legend-item"><i class="dot dot-empty"></i> No data</span>
+            <span class="cal-legend-item"><i class="dot dot-some"></i> Partial</span>
+            <span class="cal-legend-item"><i class="dot dot-done"></i> Goal met</span>
+          </div>
+          <div id="cal-day-panel" class="cal-day-panel">
+            <div class="cal-day-head">
+              <div>
+                <p id="cal-day-title" class="cal-day-title">—</p>
+                <p id="cal-day-summary" class="cal-day-summary">—</p>
+              </div>
+            </div>
+            <p id="cal-day-empty" class="log-empty cal-day-empty" hidden>No drinks logged this day.</p>
+            <ul id="cal-day-list" class="log-list cal-day-list"></ul>
+          </div>
         </section>
 
-        <section class="week-section" aria-label="Last 7 days">
-          <div class="section-head">
-            <h2>This week</h2>
-            <button type="button" id="btn-open-calendar" class="link-btn">Full calendar</button>
+        <!-- TROPHIES -->
+        <section id="view-trophies" class="app-view" data-view="trophies" hidden aria-label="Achievements">
+          <div class="achievements-summary">
+            <p id="achievements-progress" class="achievements-progress">0 / 0 unlocked</p>
+            <div class="achievements-progress-track" aria-hidden="true">
+              <div id="achievements-progress-fill" class="achievements-progress-fill" style="width:0%"></div>
+            </div>
+            <p class="achievements-tagline">Sip, streak, and show off. Badges unlock as you hydrate.</p>
           </div>
-          <div id="week-bars" class="week-bars"></div>
-        </section>
-
-        <section class="log-section" aria-label="Today’s log">
-          <div class="section-head">
-            <h2>Today</h2>
-          </div>
-          <p id="log-empty" class="log-empty">No drinks yet. Tap a size above.</p>
-          <ul id="log-list" class="log-list"></ul>
+          <div id="achievements-list" class="achievements-list" role="list"></div>
         </section>
       </main>
     </div>
 
-    <!-- Undo bar -->
+    <nav class="tab-nav" aria-label="Main">
+      <button type="button" class="tab-btn is-active" data-nav="today">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M12 3c0 0-6 8-6 13a6 6 0 0 0 12 0c0-5-6-13-6-13z" />
+        </svg>
+        <span>Today</span>
+      </button>
+      <button type="button" class="tab-btn" data-nav="insights">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M4 19V10M10 19V5M16 19v-7M22 19H2" stroke-linecap="round" />
+        </svg>
+        <span>Insights</span>
+      </button>
+      <button type="button" class="tab-btn" data-nav="calendar">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 10h18M8 3v4M16 3v4" stroke-linecap="round" />
+        </svg>
+        <span>Calendar</span>
+      </button>
+      <button type="button" class="tab-btn" data-nav="trophies">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z" stroke-linejoin="round" />
+          <path d="M7 6H5a2 2 0 0 0 2 4M17 6h2a2 2 0 0 1-2 4" stroke-linecap="round" />
+        </svg>
+        <span>Trophies</span>
+        <i id="achievements-badge" class="tab-badge" hidden>0</i>
+      </button>
+    </nav>
+
     <div id="undo-bar" class="undo-bar" hidden>
       <span>Entry removed</span>
       <button type="button" id="undo-btn">Undo</button>
     </div>
-
-    <!-- Toast -->
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-    <!-- Goal / streak celebration FX (full-screen, pointer-events none) -->
     <div id="celebration-fx" class="celebration-fx" hidden aria-hidden="true"></div>
 
-    <!-- Electrolytes lightning FX (full-screen, pointer-events none) -->
     <div id="electrolytes-fx" class="electrolytes-fx" hidden aria-hidden="true">
       <div class="ely-flash"></div>
       <svg class="ely-bolt ely-bolt-a" viewBox="0 0 24 48" fill="none" aria-hidden="true">
@@ -361,127 +399,77 @@
       <div class="ely-sparks" id="ely-sparks"></div>
     </div>
 
-    <!-- Backdrop -->
     <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
 
-    <!-- Custom amount sheet (pure water) -->
+    <!-- Custom water -->
     <div id="custom-sheet" class="sheet" role="dialog" aria-labelledby="custom-title" hidden>
       <div class="sheet-handle" aria-hidden="true"></div>
       <div class="sheet-header">
         <h2 id="custom-title">Custom amount</h2>
         <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
       </div>
       <form id="custom-form" class="sheet-body">
         <label class="field">
           <span class="field-label">Water amount (<span id="custom-unit-label">oz</span>)</span>
-          <input
-            id="custom-amount"
-            class="field-input"
-            type="number"
-            inputmode="decimal"
-            min="1"
-            step="any"
-            placeholder="e.g. 12"
-            required
-            autocomplete="off"
-          />
+          <input id="custom-amount" class="field-input" type="number" inputmode="decimal" min="1" step="any" placeholder="e.g. 12" required autocomplete="off" />
         </label>
         <p class="field-hint">Counts fully as water toward your goal.</p>
         <button type="submit" class="primary-btn">Add water</button>
       </form>
     </div>
 
-    <!-- Electrolytes sheet: volume + stick packs (water 1:1) -->
+    <!-- Electrolytes -->
     <div id="electrolytes-sheet" class="sheet" role="dialog" aria-labelledby="electrolytes-title" hidden>
       <div class="sheet-handle" aria-hidden="true"></div>
       <div class="sheet-header">
         <h2 id="electrolytes-title">ELECTROLYTES</h2>
         <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
       </div>
       <form id="electrolytes-form" class="sheet-body electrolytes-sheet-body">
         <p class="field-hint electrolytes-intro">
-          Mixed electrolytes into your drink? Log how much you poured and how many sticks —
-          water counts the same as plain water; sticks mark the charge (and the lightning).
+          Log how much you poured and how many sticks. Water counts 1:1; sticks mark the charge.
         </p>
-
         <label class="field">
           <span class="field-label">Drink amount (<span id="electrolytes-unit">oz</span>)</span>
-          <input
-            id="electrolytes-amount"
-            class="field-input"
-            type="number"
-            inputmode="decimal"
-            min="0.1"
-            step="any"
-            placeholder="e.g. 16"
-            required
-            autocomplete="off"
-          />
+          <input id="electrolytes-amount" class="field-input" type="number" inputmode="decimal" min="0.1" step="any" placeholder="e.g. 16" required autocomplete="off" />
         </label>
-
         <div class="field electrolytes-sticks-field">
           <span class="field-label" id="electrolytes-sticks-label">Stick packs</span>
           <div class="stick-stepper" role="group" aria-labelledby="electrolytes-sticks-label">
             <button type="button" id="electrolytes-sticks-minus" class="stick-step-btn" aria-label="Fewer sticks">−</button>
-            <output id="electrolytes-sticks-value" class="stick-step-value" for="electrolytes-sticks-minus electrolytes-sticks-plus" aria-live="polite">1</output>
+            <output id="electrolytes-sticks-value" class="stick-step-value" aria-live="polite">1</output>
             <button type="button" id="electrolytes-sticks-plus" class="stick-step-btn" aria-label="More sticks">+</button>
           </div>
           <p class="field-hint stick-hint">Usually 1 stick per 16 oz</p>
         </div>
-
-        <button type="submit" class="primary-btn electrolytes-submit">
-          <span aria-hidden="true">⚡</span> Log + charge
-        </button>
+        <button type="submit" class="primary-btn electrolytes-submit"><span aria-hidden="true">⚡</span> Log + charge</button>
       </form>
     </div>
 
-    <!-- Drink amount sheet (coffee, soda, etc.) -->
+    <!-- Drink amount -->
     <div id="drink-sheet" class="sheet" role="dialog" aria-labelledby="drink-sheet-title" hidden>
       <div class="sheet-handle" aria-hidden="true"></div>
       <div class="sheet-header">
         <h2 id="drink-sheet-title">Drink</h2>
         <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
       </div>
       <div class="sheet-body drink-sheet-body">
         <p id="drink-sheet-hint" class="field-hint drink-sheet-hint">—</p>
-
         <button type="button" id="drink-quick-default" class="primary-btn drink-quick-btn">
           <span id="drink-quick-main" class="drink-quick-main">Add</span>
           <span id="drink-quick-water" class="drink-quick-sub">—</span>
         </button>
-
-        <div class="drink-sheet-divider" role="separator">
-          <span>or enter amount</span>
-        </div>
-
+        <div class="drink-sheet-divider" role="separator"><span>or enter amount</span></div>
         <form id="drink-custom-form" class="drink-custom-form">
           <label class="field">
-            <span class="field-label">
-              Amount poured (<span id="drink-custom-unit">oz</span>)
-            </span>
-            <input
-              id="drink-custom-amount"
-              class="field-input"
-              type="number"
-              inputmode="decimal"
-              min="0.1"
-              step="any"
-              placeholder="e.g. 12"
-              required
-              autocomplete="off"
-            />
+            <span class="field-label">Amount poured (<span id="drink-custom-unit">oz</span>)</span>
+            <input id="drink-custom-amount" class="field-input" type="number" inputmode="decimal" min="0.1" step="any" placeholder="e.g. 12" required autocomplete="off" />
           </label>
           <p id="drink-custom-preview" class="field-hint">—</p>
           <button type="submit" class="secondary-btn drink-custom-submit">Add this amount</button>
@@ -489,89 +477,88 @@
       </div>
     </div>
 
-    <!-- Achievements sheet -->
-    <div id="achievements-sheet" class="sheet sheet-tall" role="dialog" aria-labelledby="achievements-title" hidden>
+    <!-- Edit entry -->
+    <div id="edit-sheet" class="sheet" role="dialog" aria-labelledby="edit-title" hidden>
       <div class="sheet-handle" aria-hidden="true"></div>
       <div class="sheet-header">
-        <h2 id="achievements-title">Achievements</h2>
+        <h2 id="edit-title">Edit entry</h2>
         <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
       </div>
-      <div class="sheet-body achievements-body">
-        <div class="achievements-summary">
-          <p id="achievements-progress" class="achievements-progress">0 / 0 unlocked</p>
-          <div class="achievements-progress-track" aria-hidden="true">
-            <div id="achievements-progress-fill" class="achievements-progress-fill" style="width:0%"></div>
-          </div>
-          <p class="achievements-tagline">Sip, streak, and show off. Badges unlock as you hydrate.</p>
-        </div>
-        <div id="achievements-list" class="achievements-list" role="list"></div>
-      </div>
+      <form id="edit-form" class="sheet-body">
+        <input type="hidden" id="edit-id" />
+        <label class="field">
+          <span class="field-label">Water toward goal (<span id="edit-unit">oz</span>)</span>
+          <input id="edit-amount" class="field-input" type="number" inputmode="decimal" min="0.1" step="any" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Time</span>
+          <input id="edit-time" class="field-input" type="time" />
+        </label>
+        <p id="edit-meta" class="field-hint"></p>
+        <button type="submit" class="primary-btn">Save changes</button>
+        <button type="button" id="edit-delete" class="danger-btn">Delete entry</button>
+      </form>
     </div>
 
-    <!-- Calendar sheet -->
-    <div id="calendar-sheet" class="sheet sheet-tall" role="dialog" aria-labelledby="calendar-title" hidden>
+    <!-- Add bottle -->
+    <div id="bottle-sheet" class="sheet" role="dialog" aria-labelledby="bottle-title" hidden>
       <div class="sheet-handle" aria-hidden="true"></div>
       <div class="sheet-header">
-        <h2 id="calendar-title">Calendar</h2>
+        <h2 id="bottle-title">Add a bottle</h2>
         <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
       </div>
-      <div class="sheet-body calendar-body">
-        <div class="cal-nav">
-          <button type="button" id="cal-prev" class="icon-btn" aria-label="Previous month">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-          <h3 id="cal-month-label" class="cal-month-label">—</h3>
-          <button type="button" id="cal-next" class="icon-btn" aria-label="Next month">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-        </div>
-
-        <div class="cal-weekdays" aria-hidden="true">
-          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-        </div>
-        <div id="cal-grid" class="cal-grid" role="grid" aria-label="Month days"></div>
-
-        <div class="cal-legend">
-          <span class="cal-legend-item"><i class="dot dot-empty"></i> No data</span>
-          <span class="cal-legend-item"><i class="dot dot-some"></i> Partial</span>
-          <span class="cal-legend-item"><i class="dot dot-done"></i> Goal met</span>
-        </div>
-
-        <div id="cal-day-panel" class="cal-day-panel" hidden>
-          <div class="cal-day-head">
-            <div>
-              <p id="cal-day-title" class="cal-day-title">—</p>
-              <p id="cal-day-summary" class="cal-day-summary">—</p>
-            </div>
-            <button type="button" id="cal-day-close" class="link-btn" hidden>Back</button>
-          </div>
-          <p id="cal-day-empty" class="log-empty cal-day-empty" hidden>No drinks logged this day.</p>
-          <ul id="cal-day-list" class="log-list cal-day-list"></ul>
-        </div>
-      </div>
+      <form id="bottle-form" class="sheet-body">
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input id="bottle-name" class="field-input" type="text" maxlength="28" placeholder="Hydro Flask" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Size (fl oz)</span>
+          <input id="bottle-oz" class="field-input" type="number" inputmode="decimal" min="1" step="any" placeholder="32" required />
+        </label>
+        <p class="field-hint">One tap on Today logs a full bottle as 100% water.</p>
+        <button type="submit" class="primary-btn">Save bottle</button>
+      </form>
     </div>
 
-    <!-- Settings sheet -->
-    <div id="settings-sheet" class="sheet" role="dialog" aria-labelledby="settings-title" hidden>
+    <!-- Add custom drink -->
+    <div id="new-drink-sheet" class="sheet" role="dialog" aria-labelledby="new-drink-title" hidden>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-header">
+        <h2 id="new-drink-title">Add a drink</h2>
+        <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+      <form id="new-drink-form" class="sheet-body">
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input id="new-drink-name" class="field-input" type="text" maxlength="28" placeholder="Sparkling water" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Usual size (fl oz)</span>
+          <input id="new-drink-oz" class="field-input" type="number" inputmode="decimal" min="1" step="any" placeholder="12" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Counts as water (%)</span>
+          <input id="new-drink-pct" class="field-input" type="number" inputmode="numeric" min="20" max="100" step="1" value="100" required />
+        </label>
+        <p class="field-hint">Use 100 for water. Coffee is about 80, soda about 75.</p>
+        <button type="submit" class="primary-btn">Save drink</button>
+      </form>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings-sheet" class="sheet sheet-tall" role="dialog" aria-labelledby="settings-title" hidden>
       <div class="sheet-handle" aria-hidden="true"></div>
       <div class="sheet-header">
         <h2 id="settings-title">Settings</h2>
         <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
       </div>
       <div class="sheet-body settings-body">
@@ -579,33 +566,105 @@
           <label class="field">
             <span class="field-label">Daily goal (<span id="setting-goal-unit">oz</span>)</span>
             <div class="field-row">
-              <input
-                id="setting-goal"
-                class="field-input"
-                type="number"
-                inputmode="decimal"
-                min="1"
-                step="any"
-                required
-              />
+              <input id="setting-goal" class="field-input" type="number" inputmode="decimal" min="1" step="any" required />
               <button type="submit" class="secondary-btn">Save</button>
             </div>
           </label>
+          <button type="button" id="btn-goal-lab" class="link-btn">Calculate from weight</button>
         </form>
+
+        <div id="goal-lab" class="settings-block goal-lab" hidden>
+          <p class="field-label">Goal lab</p>
+          <label class="field">
+            <span class="field-label">Weight</span>
+            <div class="field-row">
+              <input id="lab-weight" class="field-input" type="number" inputmode="decimal" min="1" step="any" placeholder="160" />
+              <select id="lab-weight-unit" class="field-input field-select">
+                <option value="lb">lb</option>
+                <option value="kg">kg</option>
+              </select>
+            </div>
+          </label>
+          <label class="field">
+            <span class="field-label">Activity</span>
+            <select id="lab-activity" class="field-input field-select">
+              <option value="sedentary">Mostly sitting</option>
+              <option value="light" selected>Light</option>
+              <option value="moderate">Moderate</option>
+              <option value="active">Active / training</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Climate</span>
+            <select id="lab-climate" class="field-input field-select">
+              <option value="cool">Cool</option>
+              <option value="mild" selected>Mild</option>
+              <option value="warm">Warm</option>
+              <option value="hot">Hot</option>
+            </select>
+          </label>
+          <p id="lab-preview" class="field-hint">Suggested goal appears here.</p>
+          <button type="button" id="lab-apply" class="secondary-btn">Use this goal</button>
+        </div>
 
         <fieldset class="settings-block unit-fieldset">
           <legend class="field-label">Units</legend>
           <div class="segmented">
-            <label class="segment">
-              <input type="radio" name="unit" value="oz" checked />
-              <span>Fluid ounces</span>
-            </label>
-            <label class="segment">
-              <input type="radio" name="unit" value="ml" />
-              <span>Millilitres</span>
-            </label>
+            <label class="segment"><input type="radio" name="unit" value="oz" checked /><span>Fluid ounces</span></label>
+            <label class="segment"><input type="radio" name="unit" value="ml" /><span>Millilitres</span></label>
           </div>
         </fieldset>
+
+        <fieldset class="settings-block">
+          <legend class="field-label">Theme</legend>
+          <div class="segmented segmented-3">
+            <label class="segment"><input type="radio" name="theme" value="system" checked /><span>System</span></label>
+            <label class="segment"><input type="radio" name="theme" value="dark" /><span>Dark</span></label>
+            <label class="segment"><input type="radio" name="theme" value="light" /><span>Light</span></label>
+          </div>
+        </fieldset>
+
+        <div class="settings-block">
+          <p class="field-label">Your day</p>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-label">Wake</span>
+              <input id="setting-wake" class="field-input" type="number" min="0" max="23" step="1" />
+            </label>
+            <label class="field">
+              <span class="field-label">Wind-down</span>
+              <input id="setting-sleep" class="field-input" type="number" min="1" max="24" step="1" />
+            </label>
+          </div>
+          <p class="field-hint">Pace compares your total to a straight line from wake to wind-down.</p>
+        </div>
+
+        <div class="settings-block">
+          <p class="field-label">Reminders</p>
+          <label class="toggle-row" for="setting-reminders">
+            <span class="toggle-row-text">
+              <span class="toggle-row-title">Nudge me to drink</span>
+              <span class="toggle-row-sub">Works while the app is open. iPhone background logging still uses Siri Shortcuts.</span>
+            </span>
+            <input id="setting-reminders" class="toggle-input" type="checkbox" />
+            <span class="toggle-switch" aria-hidden="true"></span>
+          </label>
+          <label class="field" id="reminder-times-field" hidden>
+            <span class="field-label">Times (comma-separated, 24h)</span>
+            <input id="setting-reminder-times" class="field-input" type="text" placeholder="09:00, 13:00, 17:00" />
+          </label>
+        </div>
+
+        <div class="settings-block">
+          <label class="toggle-row" for="setting-sound">
+            <span class="toggle-row-text">
+              <span class="toggle-row-title">Sip sounds</span>
+              <span class="toggle-row-sub">Tiny synthesized drops. No files downloaded.</span>
+            </span>
+            <input id="setting-sound" class="toggle-input" type="checkbox" />
+            <span class="toggle-switch" aria-hidden="true"></span>
+          </label>
+        </div>
 
         <div class="settings-block mascot-settings-block">
           <p class="field-label">Mascot</p>
@@ -630,56 +689,34 @@
           </div>
         </div>
 
+        <div class="settings-block">
+          <p class="field-label">Bottles</p>
+          <div id="settings-bottles" class="mini-list"></div>
+          <button type="button" id="btn-add-bottle" class="secondary-btn">Add bottle</button>
+        </div>
+
         <div class="settings-block bg-photo-block">
           <p class="field-label">Background photo</p>
           <div id="bg-photo-preview" class="bg-photo-preview" data-empty="1" role="img" aria-label="Background preview"></div>
           <div class="bg-photo-actions">
-            <button type="button" id="btn-bg-photo" class="secondary-btn bg-photo-choose">
-              Choose from Photos
-            </button>
-            <button type="button" id="btn-bg-photo-clear" class="ghost-btn" hidden>
-              Remove photo
-            </button>
+            <button type="button" id="btn-bg-photo" class="secondary-btn bg-photo-choose">Choose from Photos</button>
+            <button type="button" id="btn-bg-photo-clear" class="ghost-btn" hidden>Remove photo</button>
           </div>
-          <!--
-            iOS: accept=image/* opens Photos; do NOT set capture (that forces camera).
-            Input must be triggered from a direct user tap.
-          -->
-          <input
-            id="bg-photo-input"
-            class="bg-photo-input"
-            type="file"
-            accept="image/*"
-            tabindex="-1"
-            aria-hidden="true"
-          />
+          <input id="bg-photo-input" class="bg-photo-input" type="file" accept="image/*" tabindex="-1" aria-hidden="true" />
           <label class="field bg-dim-field" id="bg-dim-field" hidden>
             <span class="field-label">Photo dimming</span>
-            <input
-              id="bg-dim-range"
-              class="bg-dim-range"
-              type="range"
-              min="25"
-              max="85"
-              step="1"
-              value="58"
-            />
+            <input id="bg-dim-range" class="bg-dim-range" type="range" min="25" max="85" step="1" value="58" />
             <span class="bg-dim-hint">Darker keeps buttons readable</span>
           </label>
-          <p class="settings-note">
-            Stored only on this iPhone. Works in Safari and the home-screen app.
-            Large photos are resized automatically.
-          </p>
+          <p class="settings-note">Stored only on this device. Large photos are resized automatically.</p>
         </div>
 
         <div class="settings-block hydration-note-block">
           <p class="field-label">How drinks count</p>
           <p class="settings-note hydration-note">
             Pure water counts 100%. Other drinks only count a portion toward your goal
-            (coffee ~80%, soda ~75%, tea/sports ~90%, iced latte ~89%, juice/smoothie ~85%)
-            because they are not pure water.
-            <strong>ELECTROLYTES</strong> still counts as the water you poured (1:1) — sticks are not
-            extra fluid ounces. The app tags them and plays a charge animation.
+            (coffee ~80%, soda ~75%, tea/sports ~90%, iced latte ~89%, juice/smoothie ~85%).
+            <strong>ELECTROLYTES</strong> still counts as the water you poured (1:1) — sticks are not extra fluid.
           </p>
         </div>
 
@@ -687,18 +724,62 @@
           <button type="button" id="btn-preview-cele" class="ghost-btn">Preview celebration</button>
           <button type="button" id="btn-clear-today" class="ghost-btn">Clear today</button>
           <button type="button" id="btn-export" class="ghost-btn">Export data</button>
+          <button type="button" id="btn-import" class="ghost-btn">Import backup</button>
+          <input id="import-input" type="file" accept="application/json,.json" hidden />
           <button type="button" id="btn-clear-all" class="danger-btn">Delete all history</button>
         </div>
 
         <p class="settings-note">
-          Data stays on this device only. Add to Home Screen from Safari for the full-screen app.
-          Siri Shortcuts can open
-          <code>?add=250</code> to log water by voice — see README.
+          Water Tracker 2.0 · data stays on this device. Add to Home Screen from Safari.
+          Siri can open <code>?add=250</code> or <code>?drink=owala</code> — see README.
         </p>
       </div>
     </div>
 
-    <!-- Portrait lock nudge for landscape (PWA / Safari fallback when OS ignores orientation) -->
+    <!-- Onboarding -->
+    <div id="onboard" class="onboard-overlay" hidden>
+      <div class="onboard-card">
+        <div class="onboard-step" data-step="0">
+          <p class="kicker">Water Tracker 2.0</p>
+          <h2>A calmer way to stay full.</h2>
+          <p>Owala, electrolytes, real hydration math, Dew, and a pace that follows your day. Everything stays on this phone.</p>
+        </div>
+        <div class="onboard-step" data-step="1" hidden>
+          <h2>What should we call you?</h2>
+          <label class="field">
+            <span class="field-label">Name (optional)</span>
+            <input id="onboard-name" class="field-input" type="text" maxlength="24" placeholder="You" />
+          </label>
+          <fieldset class="settings-block unit-fieldset">
+            <legend class="field-label">Units</legend>
+            <div class="segmented">
+              <label class="segment"><input type="radio" name="onboard-unit" value="oz" checked /><span>Ounces</span></label>
+              <label class="segment"><input type="radio" name="onboard-unit" value="ml" /><span>Millilitres</span></label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="onboard-step" data-step="2" hidden>
+          <h2>Daily goal</h2>
+          <label class="field">
+            <span class="field-label">Goal (<span id="onboard-goal-unit">oz</span>)</span>
+            <input id="onboard-goal" class="field-input" type="number" inputmode="decimal" min="1" step="any" value="68" />
+          </label>
+          <p class="field-hint">A common starting point is about 0.5 oz per pound of body weight. You can run the Goal Lab later in Settings.</p>
+        </div>
+        <div class="onboard-step" data-step="3" hidden>
+          <h2>Meet Dew</h2>
+          <p>Your little drop. Tap him, squeeze him, fling him. He fills up as you do. You can hide him anytime in Settings.</p>
+        </div>
+        <div class="onboard-dots" aria-hidden="true">
+          <i class="is-on"></i><i></i><i></i><i></i>
+        </div>
+        <div class="onboard-actions">
+          <button type="button" id="onboard-back" class="ghost-btn" hidden>Back</button>
+          <button type="button" id="onboard-next" class="primary-btn">Continue</button>
+        </div>
+      </div>
+    </div>
+
     <div id="rotate-lock" class="rotate-lock" hidden aria-hidden="true">
       <div class="rotate-lock-card">
         <span class="rotate-lock-icon" aria-hidden="true">📱</span>
@@ -707,18 +788,12 @@
       </div>
     </div>
 
-    <!-- Dew the water-drop mascot (toggle in Settings) -->
     <div id="mascot" class="mascot" hidden data-side="right">
       <div id="mascot-bubble" class="mascot-bubble" role="status" aria-live="polite" aria-hidden="true">
         <p id="mascot-message" class="mascot-message">Hey! I’m Dew.</p>
         <span class="mascot-bubble-tail" aria-hidden="true"></span>
       </div>
-      <button
-        type="button"
-        id="mascot-btn"
-        class="mascot-btn"
-        aria-label="Dew the water drop. Tap to talk, hold to squeeze, drag to toss."
-      >
+      <button type="button" id="mascot-btn" class="mascot-btn" aria-label="Dew the water drop. Tap to talk, hold to squeeze, drag to toss.">
         <svg class="mascot-svg" viewBox="0 0 64 80" width="64" height="80" aria-hidden="true">
           <defs>
             <linearGradient id="dewBody" x1="20%" y1="0%" x2="80%" y2="100%">
@@ -741,56 +816,25 @@
             </linearGradient>
             <filter id="dewSoft" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="0.55" result="b" />
-              <feMerge>
-                <feMergeNode in="b" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
             <clipPath id="dewClip">
               <path d="M32 4 C32 4 10 30 10 48 C10 61 20 72 32 72 C44 72 54 61 54 48 C54 30 32 4 32 4 Z" />
             </clipPath>
           </defs>
-
           <ellipse class="mascot-shadow" cx="32" cy="75" rx="15" ry="3.2" fill="rgba(0,0,0,0.22)" />
-
           <g class="mascot-body">
-            <path
-              d="M32 4 C32 4 10 30 10 48 C10 61 20 72 32 72 C44 72 54 61 54 48 C54 30 32 4 32 4 Z"
-              fill="url(#dewBody)"
-              filter="url(#dewSoft)"
-            />
-            <path
-              d="M32 4 C32 4 10 30 10 48 C10 61 20 72 32 72 C44 72 54 61 54 48 C54 30 32 4 32 4 Z"
-              fill="none"
-              stroke="rgba(180, 230, 245, 0.45)"
-              stroke-width="1.2"
-            />
+            <path d="M32 4 C32 4 10 30 10 48 C10 61 20 72 32 72 C44 72 54 61 54 48 C54 30 32 4 32 4 Z" fill="url(#dewBody)" filter="url(#dewSoft)" />
+            <path d="M32 4 C32 4 10 30 10 48 C10 61 20 72 32 72 C44 72 54 61 54 48 C54 30 32 4 32 4 Z" fill="none" stroke="rgba(180, 230, 245, 0.45)" stroke-width="1.2" />
           </g>
-
           <g clip-path="url(#dewClip)">
             <g class="dew-fill-inner">
               <rect x="8" y="0" width="48" height="86" fill="url(#dewFillDeep)" />
-              <path
-                class="dew-fill-wave"
-                d="M8 10 Q20 4 32 10 T56 10 V90 H8 Z"
-                fill="url(#dewFillSurf)"
-              />
+              <path class="dew-fill-wave" d="M8 10 Q20 4 32 10 T56 10 V90 H8 Z" fill="url(#dewFillSurf)" />
             </g>
           </g>
-
-          <ellipse
-            class="mascot-shine"
-            cx="23"
-            cy="34"
-            rx="7"
-            ry="11"
-            fill="url(#dewShine)"
-            transform="rotate(-18 23 34)"
-          />
-
-          <g class="dew-acc dew-acc-halo" opacity="0">
-            <ellipse cx="32" cy="8" rx="11" ry="3.2" fill="none" stroke="#f0c14a" stroke-width="1.6" />
-          </g>
+          <ellipse class="mascot-shine" cx="23" cy="34" rx="7" ry="11" fill="url(#dewShine)" transform="rotate(-18 23 34)" />
+          <g class="dew-acc dew-acc-halo" opacity="0"><ellipse cx="32" cy="8" rx="11" ry="3.2" fill="none" stroke="#f0c14a" stroke-width="1.6" /></g>
           <g class="dew-acc dew-acc-flame" opacity="0">
             <path d="M32 2 C30 6 28 7 29 10 C30 12 34 12 35 9 C36 6 33 4 32 2 Z" fill="#ff8a3d" />
             <path d="M32 5 C31 7 30.5 8 31.2 9.5 C32 11 33.6 10.4 33.4 8.6 C33.2 7 32.4 6 32 5 Z" fill="#ffe27a" />
@@ -811,7 +855,6 @@
           <g class="dew-acc dew-acc-bolt" opacity="0">
             <path d="M50 20 L44 30 h5 L46 40 L56 28 h-5 L50 20 Z" fill="#c084fc" />
           </g>
-
           <g class="mascot-face">
             <ellipse class="mascot-eye mascot-eye-l" cx="24" cy="46" rx="3.2" ry="3.8" fill="#0b2a36" />
             <ellipse class="mascot-eye mascot-eye-r" cx="40" cy="46" rx="3.2" ry="3.8" fill="#0b2a36" />
@@ -819,32 +862,9 @@
             <circle class="mascot-eye-shine" cx="41.2" cy="44.6" r="1.1" fill="#e8fbff" />
             <ellipse class="mascot-cheek" cx="17.5" cy="52" rx="3.5" ry="2.2" fill="#7ee0ff" opacity="0.45" />
             <ellipse class="mascot-cheek" cx="46.5" cy="52" rx="3.5" ry="2.2" fill="#7ee0ff" opacity="0.45" />
-            <path
-              class="mascot-mouth mascot-mouth-default"
-              d="M26 54 Q32 59 38 54"
-              fill="none"
-              stroke="#0b2a36"
-              stroke-width="1.8"
-              stroke-linecap="round"
-            />
-            <path
-              class="mascot-mouth mascot-mouth-big"
-              d="M25 53 Q32 61 39 53"
-              fill="none"
-              stroke="#0b2a36"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              opacity="0"
-            />
-            <path
-              class="mascot-mouth mascot-mouth-sleepy"
-              d="M28 55 Q32 53 36 55"
-              fill="none"
-              stroke="#0b2a36"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              opacity="0"
-            />
+            <path class="mascot-mouth mascot-mouth-default" d="M26 54 Q32 59 38 54" fill="none" stroke="#0b2a36" stroke-width="1.8" stroke-linecap="round" />
+            <path class="mascot-mouth mascot-mouth-big" d="M25 53 Q32 61 39 53" fill="none" stroke="#0b2a36" stroke-width="1.8" stroke-linecap="round" opacity="0" />
+            <path class="mascot-mouth mascot-mouth-sleepy" d="M28 55 Q32 53 36 55" fill="none" stroke="#0b2a36" stroke-width="1.8" stroke-linecap="round" opacity="0" />
             <ellipse class="mascot-mouth mascot-mouth-o" cx="32" cy="55.5" rx="2.4" ry="2.8" fill="#0b2a36" opacity="0" />
             <g class="mascot-mouth mascot-mouth-dizzy" opacity="0">
               <path d="M27 54 Q30 57 33 54 Q30 51 27 54" fill="none" stroke="#0b2a36" stroke-width="1.5" />
@@ -858,7 +878,6 @@
               <path d="M37 45.5 h6" stroke="#7ee0ff" stroke-width="0.8" opacity="0.55" />
             </g>
           </g>
-
           <g class="mascot-lids" opacity="0">
             <path d="M20 46 Q24 42 28 46" fill="none" stroke="#0b2a36" stroke-width="2" stroke-linecap="round" />
             <path d="M36 46 Q40 42 44 46" fill="none" stroke="#0b2a36" stroke-width="2" stroke-linecap="round" />
@@ -872,16 +891,17 @@
       <div id="dew-fx" class="dew-fx" aria-hidden="true"></div>
     </div>
 
-    <!-- Classic scripts so double-click / file:// works (ES modules do not). -->
     <script src="js/utils.js"></script>
     <script src="js/storage.js"></script>
+    <script src="js/haptics.js"></script>
+    <script src="js/sound.js"></script>
+    <script src="js/reminders.js"></script>
     <script src="js/achievements.js"></script>
     <script src="js/mascot.js"></script>
     <script src="js/bg-photo.js"></script>
     <script src="js/celebrations.js"></script>
     <script src="js/app.js"></script>
     <script>
-      // Service workers need http(s) or localhost — skip on file://
       if ('serviceWorker' in navigator && location.protocol !== 'file:') {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('sw.js').catch(() => {});

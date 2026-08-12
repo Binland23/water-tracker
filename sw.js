@@ -1,15 +1,19 @@
 // Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = 'water-tracker-v23';
+const CACHE_VERSION = 'water-tracker-v24';
 
 const PRECACHE = [
   './',
   'index.html',
   'styles.css',
+  'css/fx.css',
   'manifest.json',
-  'js/app.js',
-  'js/storage.js',
   'js/utils.js',
+  'js/storage.js',
+  'js/haptics.js',
+  'js/sound.js',
+  'js/reminders.js',
   'js/achievements.js',
+  'js/app.js',
   'js/mascot.js',
   'js/bg-photo.js',
   'js/celebrations.js',
@@ -31,9 +35,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_VERSION).map((key) => caches.delete(key)))
-      )
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_VERSION).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });

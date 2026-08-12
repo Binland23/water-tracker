@@ -1,13 +1,13 @@
 {
-  "name": "Water Tracker",
+  "name": "Water Tracker 2.0",
   "short_name": "Water",
-  "description": "Track your daily water intake. Offline-ready for iPhone.",
+  "description": "Daily hydration with bottles, electrolytes, Dew, and insights. Offline-ready for iPhone.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0b1f2a",
-  "theme_color": "#0b1f2a",
+  "background_color": "#07161d",
+  "theme_color": "#07161d",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",
@@ -26,6 +26,26 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log Owala",
+      "short_name": "Owala",
+      "description": "Log a full 24 oz Owala",
+      "url": "./?drink=owala"
+    },
+    {
+      "name": "Log 16 oz",
+      "short_name": "16 oz",
+      "description": "Add 16 ounces of water",
+      "url": "./?add=16&unit=oz"
+    },
+    {
+      "name": "ELECTROLYTES",
+      "short_name": "Electrolytes",
+      "description": "Log a default electrolytes mix",
+      "url": "./?drink=electrolytes"
     }
   ]
 }

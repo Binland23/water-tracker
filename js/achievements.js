@@ -1,5 +1,5 @@
 /**
- * Fun achievements for Water Tracker.
+ * Fun achievements for Water Tracker 2.0.
  * Unlocks are stored on the main store under `achievements: { [id]: unlockedAtMs }`.
  */
 (function (global) {
@@ -214,6 +214,13 @@
       icon: '🏅',
       category: 'Streaks',
     },
+    {
+      id: 'streak-365',
+      title: 'Solar Cycle',
+      desc: '365-day goal streak.',
+      icon: '☀️',
+      category: 'Streaks',
+    },
 
     // —— Lifetime volume ——
     {
@@ -249,6 +256,13 @@
       title: 'Lake Legend',
       desc: 'Log 500 liters lifetime. You absolute unit.',
       icon: '🧜',
+      category: 'Lifetime',
+    },
+    {
+      id: 'life-1000l',
+      title: 'Inland Sea',
+      desc: 'Log 1,000 liters lifetime.',
+      icon: '🐋',
       category: 'Lifetime',
     },
 
@@ -309,8 +323,15 @@
       icon: '🌟',
       category: 'Habits',
     },
+    {
+      id: 'week-five',
+      title: 'Almost Perfect',
+      desc: 'Meet your goal 5 of the last 7 days.',
+      icon: '⭐',
+      category: 'Habits',
+    },
 
-    // —— Meta / app ——
+    // —— Meta / app / 2.0 explorer ——
     {
       id: 'photo-finish',
       title: 'Photo Finish',
@@ -344,6 +365,76 @@
       title: 'Trophy Tourist',
       desc: 'Open the achievements page.',
       icon: '👀',
+      category: 'Explorer',
+    },
+    {
+      id: 'onboarded',
+      title: 'Welcome Aboard',
+      desc: 'Finish first-run setup.',
+      icon: '🚢',
+      category: 'Explorer',
+    },
+    {
+      id: 'insights-peek',
+      title: 'By the Numbers',
+      desc: 'Open Insights.',
+      icon: '📊',
+      category: 'Explorer',
+    },
+    {
+      id: 'theme-flip',
+      title: 'Mood Lighting',
+      desc: 'Change the app theme.',
+      icon: '🌗',
+      category: 'Explorer',
+    },
+    {
+      id: 'imported',
+      title: 'Memory Lane',
+      desc: 'Import a backup.',
+      icon: '🧳',
+      category: 'Explorer',
+    },
+    {
+      id: 'bottle-maker',
+      title: 'Bottle Service',
+      desc: 'Add a custom bottle.',
+      icon: '🧴',
+      category: 'Explorer',
+    },
+    {
+      id: 'drink-maker',
+      title: 'Mixologist',
+      desc: 'Add a custom drink.',
+      icon: '🍸',
+      category: 'Explorer',
+    },
+    {
+      id: 'editor',
+      title: 'Revision History',
+      desc: 'Edit an existing log.',
+      icon: '✏️',
+      category: 'Explorer',
+    },
+    {
+      id: 'reminder-set',
+      title: 'Nudge Me',
+      desc: 'Turn on reminders.',
+      icon: '🔔',
+      category: 'Explorer',
+    },
+    {
+      id: 'goal-lab',
+      title: 'Hydration Scientist',
+      desc: 'Use the goal calculator.',
+      icon: '🧪',
+      category: 'Explorer',
+    },
+    {
+      id: 'pace-ace',
+      title: 'Right on Time',
+      desc: 'Finish 3 days on-track or ahead of pace.',
+      icon: '⏰',
       category: 'Explorer',
     },
 
@@ -384,6 +475,13 @@
       category: 'Dew',
     },
     {
+      id: 'dew-legend',
+      title: 'Emotional Support Water',
+      desc: 'Reach Legend friendship with Dew.',
+      icon: '🛟',
+      category: 'Dew',
+    },
+    {
       id: 'collector',
       title: 'Collector',
       desc: 'Unlock 10 achievements.',
@@ -410,6 +508,31 @@
   const BY_ID = Object.freeze(Object.fromEntries(CATALOG.map((a) => [a.id, a])));
 
   const GALLON_ML = Math.round(128 * 29.5735); // ~3785
+
+  const UI_CATEGORY_ORDER = Object.freeze([
+    'Firsts',
+    'Daily',
+    'Owala',
+    'Electrolytes',
+    'Drinks',
+    'Streaks',
+    'Lifetime',
+    'Habits',
+    'Explorer',
+    'Dew',
+    'Meta',
+  ]);
+
+  /**
+   * Owala-only entries. Custom bottles never count here unless they are
+   * explicitly labeled "owala" or tagged bottleId === 'owala'.
+   * @param {object} entry
+   */
+  function isOwala(entry) {
+    if (!entry) return false;
+    if (entry.bottleId === 'owala') return true;
+    return String(entry.label || '').toLowerCase() === 'owala';
+  }
 
   function normalizeMap(raw) {
     const out = {};
@@ -439,6 +562,16 @@
     return CATALOG.length;
   }
 
+  function goalDaysInWindow(totals, goal, endDate, span) {
+    let n = 0;
+    const d = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    for (let i = 0; i < span; i++) {
+      if ((totals.get(dayKey(d)) || 0) >= goal) n += 1;
+      d.setDate(d.getDate() - 1);
+    }
+    return n;
+  }
+
   /**
    * Snapshot stats derived from entries for achievement checks.
    * @param {object} store
@@ -462,8 +595,7 @@
 
     for (const e of entries) {
       lifetimeMl += e.ml || 0;
-      const label = (e.label || '').toLowerCase();
-      if (label === 'owala') owalaCount += 1;
+      if (isOwala(e)) owalaCount += 1;
       if (typeof e.electrolytes === 'number' && e.electrolytes >= 1) elyCount += 1;
       if (e.label) labelsSeen.add(String(e.label).toLowerCase());
     }
@@ -476,7 +608,7 @@
       if (typeof e.electrolytes === 'number' && e.electrolytes >= 1) return true;
       if (typeof e.hydration === 'number' && e.hydration < 1) return false;
       const label = (e.label || '').toLowerCase();
-      if (!label || label === 'owala' || label === 'water') return true;
+      if (!label || label === 'owala' || label === 'water' || e.bottleId === 'owala') return true;
       // Labeled full-water drinks (if any) still count as pure
       return !(typeof e.hydration === 'number' && e.hydration < 1);
     }
@@ -484,8 +616,7 @@
     let pureOnlyToday = todayEntries.length > 0 && todayEntries.every(isPureWaterEntry);
 
     for (const e of todayEntries) {
-      const label = (e.label || '').toLowerCase();
-      if (label === 'owala') todayOwala += 1;
+      if (isOwala(e)) todayOwala += 1;
       if (typeof e.electrolytes === 'number' && e.electrolytes >= 1) {
         todayEly = true;
         todayMaxSticks = Math.max(todayMaxSticks, e.electrolytes);
@@ -536,6 +667,18 @@
       }
     }
 
+    // 5 of last 7 days — plus any historical 7-day window (silent backfill)
+    let weekFive = goalDaysInWindow(totals, goal, new Date(), 7) >= 5;
+    if (!weekFive) {
+      for (const k of totals.keys()) {
+        const end = parseDayKey(k);
+        if (end && goalDaysInWindow(totals, goal, end, 7) >= 5) {
+          weekFive = true;
+          break;
+        }
+      }
+    }
+
     // Any Monday met goal historically
     let mondayMet = false;
     for (const [k, total] of totals) {
@@ -561,7 +704,7 @@
     if (!tripleOwalaDay) {
       const byDay = new Map();
       for (const e of entries) {
-        if ((e.label || '').toLowerCase() !== 'owala') continue;
+        if (!isOwala(e)) continue;
         const k = dayKey(new Date(e.ts));
         byDay.set(k, (byDay.get(k) || 0) + 1);
         if (byDay.get(k) >= 3) {
@@ -666,6 +809,7 @@
       yesterdayMet,
       weekendWarrior,
       perfectWeek,
+      weekFive,
       mondayMet,
       halfFull: todayTotal >= goal * 0.5 || bestPct >= 0.5,
     };
@@ -673,9 +817,26 @@
 
   /**
    * Evaluate which achievements should unlock given current store + optional context flags.
+   * Mutates store.achievements and returns newly unlocked ids.
    * @param {object} store
    * @param {object} storage
-   * @param {{ photoSet?: boolean, goalChanged?: boolean, unitFlipped?: boolean, calendarOpened?: boolean, achievementsOpened?: boolean }} [ctx]
+   * @param {{
+   *   photoSet?: boolean,
+   *   goalChanged?: boolean,
+   *   unitFlipped?: boolean,
+   *   calendarOpened?: boolean,
+   *   achievementsOpened?: boolean,
+   *   onboarded?: boolean,
+   *   insightsOpened?: boolean,
+   *   themeChanged?: boolean,
+   *   imported?: boolean,
+   *   bottleAdded?: boolean,
+   *   drinkAdded?: boolean,
+   *   entryEdited?: boolean,
+   *   remindersEnabled?: boolean,
+   *   goalCalculated?: boolean,
+   *   paceWin?: boolean
+   * }} [ctx]
    * @returns {string[]} newly unlocked ids
    */
   function evaluate(store, storage, ctx = {}) {
@@ -689,7 +850,7 @@
 
     mark('first-sip', (store.entries || []).length >= 1);
     mark('half-full', stats.halfFull);
-    mark('goal-met', stats.todayMet || [...(storage.totalsByDay(store).values())].some((t) => t >= stats.goal));
+    mark('goal-met', stats.todayMet || [...storage.totalsByDay(store).values()].some((t) => t >= stats.goal));
     mark('overachiever', stats.bestPct >= 1.1);
     mark('double-down', stats.bestPct >= 2);
     mark('gallon-club', stats.maxDayTotal >= GALLON_ML);
@@ -737,12 +898,14 @@
     mark('streak-14', stats.streakActive >= 14 || stats.streak >= 14);
     mark('streak-30', stats.streakActive >= 30 || stats.streak >= 30);
     mark('streak-100', stats.streakActive >= 100 || stats.streak >= 100);
+    mark('streak-365', stats.streakActive >= 365 || stats.streak >= 365);
 
     mark('life-1l', stats.lifetimeMl >= 1000);
     mark('life-10l', stats.lifetimeMl >= 10000);
     mark('life-50l', stats.lifetimeMl >= 50000);
     mark('life-100l', stats.lifetimeMl >= 100000);
     mark('life-500l', stats.lifetimeMl >= 500000);
+    mark('life-1000l', stats.lifetimeMl >= 1000000);
 
     mark('early-bird', stats.earlyBird);
     mark('night-owl', stats.nightOwl);
@@ -760,12 +923,10 @@
           break;
         }
       }
-      mark(
-        'comeback',
-        stats.todayMet && !stats.yesterdayMet && hadPriorDay
-      );
+      mark('comeback', stats.todayMet && !stats.yesterdayMet && hadPriorDay);
     }
     mark('perfect-week', stats.perfectWeek);
+    mark('week-five', stats.weekFive);
 
     // Explorer flags: only unlock when the action happens (or photo already set via ctx)
     if (ctx.photoSet) want.add('photo-finish');
@@ -773,6 +934,27 @@
     if (ctx.unitFlipped) want.add('unit-flip');
     if (ctx.calendarOpened) want.add('calendar-peek');
     if (ctx.achievementsOpened) want.add('achievements-tourist');
+    if (ctx.onboarded) want.add('onboarded');
+    if (ctx.insightsOpened) want.add('insights-peek');
+    if (ctx.themeChanged) want.add('theme-flip');
+    if (ctx.imported) want.add('imported');
+    if (ctx.entryEdited) want.add('editor');
+    if (ctx.goalCalculated) want.add('goal-lab');
+
+    const bottles = store.bottles;
+    if (ctx.bottleAdded || (Array.isArray(bottles) && bottles.length > 1)) {
+      want.add('bottle-maker');
+    }
+    if (ctx.drinkAdded || (store.customDrinks || []).length >= 1) {
+      want.add('drink-maker');
+    }
+    if (ctx.remindersEnabled || (store.reminders && store.reminders.enabled)) {
+      want.add('reminder-set');
+    }
+    const paceWins = Number(store.paceWins) || 0;
+    if (paceWins >= 3 || (ctx.paceWin && paceWins >= 3)) {
+      want.add('pace-ace');
+    }
 
     const dew = store.dew || {};
     mark('dew-hello', (dew.pets || 0) >= 1);
@@ -780,6 +962,7 @@
     mark('dew-yeet', (dew.flings || 0) >= 1);
     mark('dew-bestie', (dew.friendship || 0) >= 40);
     mark('dew-popular', (dew.pets || 0) >= 20);
+    mark('dew-legend', (dew.friendship || 0) >= 160);
 
     const now = Date.now();
     const newly = [];
@@ -819,19 +1002,6 @@
   function listForUi(store) {
     const map = ensureMap(store);
     const groups = [];
-    const order = [
-      'Firsts',
-      'Daily',
-      'Owala',
-      'Electrolytes',
-      'Drinks',
-      'Streaks',
-      'Lifetime',
-      'Habits',
-      'Explorer',
-      'Dew',
-      'Meta',
-    ];
     const byCat = new Map();
     for (const a of CATALOG) {
       if (!byCat.has(a.category)) byCat.set(a.category, []);
@@ -841,13 +1011,12 @@
         unlockedAt: map[a.id] || null,
       });
     }
-    for (const cat of order) {
+    for (const cat of UI_CATEGORY_ORDER) {
       if (!byCat.has(cat)) continue;
       groups.push({ category: cat, items: byCat.get(cat) });
     }
-    // any leftover categories
     for (const [cat, items] of byCat) {
-      if (!order.includes(cat)) groups.push({ category: cat, items });
+      if (!UI_CATEGORY_ORDER.includes(cat)) groups.push({ category: cat, items });
     }
     return groups;
   }
