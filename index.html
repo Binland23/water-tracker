@@ -8,6 +8,8 @@
     />
     <meta name="description" content="Track your daily water intake. Offline-ready for iPhone." />
     <meta name="theme-color" content="#0b1f2a" />
+    <meta name="theme-color" content="#f3f8fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1f2a" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Water" />
@@ -25,8 +27,23 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <script>
+      // iOS standalone often reports 0 safe-area; class lets CSS pad past the island glass.
+      (function () {
+        var standalone =
+          window.navigator.standalone === true ||
+          window.matchMedia('(display-mode: standalone)').matches ||
+          window.matchMedia('(display-mode: fullscreen)').matches;
+        if (standalone) document.documentElement.classList.add('is-standalone');
+        var light = window.matchMedia('(prefers-color-scheme: light)').matches;
+        var meta = document.querySelector('meta[name="theme-color"]:not([media])');
+        if (meta) meta.setAttribute('content', light ? '#f3f8fa' : '#0b1f2a');
+      })();
+    </script>
   </head>
   <body>
+    <!-- Solid strip under the iOS status bar so Liquid Glass doesn't frost the header -->
+    <div class="status-safe" aria-hidden="true"></div>
     <!-- Fixed photo layer (iOS-safe; not background-attachment: fixed) -->
     <div id="photo-bg-layer" class="photo-bg-layer" hidden aria-hidden="true"></div>
 

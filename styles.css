@@ -56,6 +56,25 @@
 html {
   -webkit-text-size-adjust: 100%;
   height: 100%;
+  overflow-x: clip;
+  overscroll-behavior: none;
+}
+
+/*
+  iOS 26 standalone PWAs often report safe-area-inset-top: 0 while still
+  drawing Liquid Glass over the Dynamic Island. Fall back so "Today" sits
+  below that chrome instead of looking pre-scrolled / frosted.
+*/
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  :root {
+    --safe-top: max(env(safe-area-inset-top, 0px), 62px);
+    --safe-bottom: max(env(safe-area-inset-bottom, 0px), 20px);
+  }
+}
+
+html.is-standalone {
+  --safe-top: max(env(safe-area-inset-top, 0px), 62px);
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), 20px);
 }
 
 body {
@@ -71,7 +90,20 @@ body {
     var(--bg);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overscroll-behavior-y: none;
+}
+
+/* Matches page bg under the status bar so iOS glass samples a solid color */
+.status-safe {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  background: var(--bg);
+  z-index: 50;
+  pointer-events: none;
 }
 
 body.sheet-open {
@@ -108,6 +140,10 @@ button:active {
   display: flex;
   flex-direction: column;
   gap: 28px;
+}
+
+html.is-standalone .app {
+  padding-top: calc(24px + var(--safe-top));
 }
 
 /* —— Header —— */
@@ -2468,6 +2504,8 @@ body.is-landscape-locked .mascot {
 .mascot-bubble.is-visible {
   opacity: 1;
   transform: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .mascot-message {
@@ -2700,6 +2738,10 @@ body.has-photo-bg {
 body.has-photo-bg .app {
   position: relative;
   z-index: 1;
+}
+
+body.has-photo-bg .status-safe {
+  background: #0a1820;
 }
 
 /* Keep UI surfaces readable over busy photos */

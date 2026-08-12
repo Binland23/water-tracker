@@ -46,6 +46,9 @@
   let achievementToastBusy = false;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let mascotIdleTimer = null;
+  /** Auto-dismiss timer for Dew's speech bubble */
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let mascotHideTimer = null;
   /** Last mascot message text (avoid immediate repeats) */
   let lastMascotMessage = '';
 
@@ -194,6 +197,7 @@
       backdrop.classList.add('is-open');
     });
     document.body.classList.add('sheet-open');
+    hideMascotBubble();
     haptic('light');
   }
 
@@ -355,10 +359,27 @@
     if (toggle && document.activeElement !== toggle) {
       toggle.checked = show;
     }
-    if (!show && mascotIdleTimer) {
-      clearTimeout(mascotIdleTimer);
-      mascotIdleTimer = null;
+    if (!show) {
+      hideMascotBubble();
+      if (mascotIdleTimer) {
+        clearTimeout(mascotIdleTimer);
+        mascotIdleTimer = null;
+      }
     }
+  }
+
+  function hideMascotBubble() {
+    if (mascotHideTimer) {
+      clearTimeout(mascotHideTimer);
+      mascotHideTimer = null;
+    }
+    const root = $('#mascot');
+    const bubble = $('#mascot-bubble');
+    if (bubble) {
+      bubble.classList.remove('is-visible');
+      bubble.setAttribute('aria-hidden', 'true');
+    }
+    if (root) root.classList.remove('is-speaking');
   }
 
   /**
@@ -388,11 +409,17 @@
     root.classList.add('is-speaking', 'is-bounce');
     if (bubble) {
       bubble.classList.add('is-visible');
+      bubble.setAttribute('aria-hidden', 'false');
     }
 
     // Clear bounce class after anim
     clearTimeout(speakMascot._bounceT);
     speakMascot._bounceT = setTimeout(() => root.classList.remove('is-bounce'), 520);
+
+    if (mascotHideTimer) clearTimeout(mascotHideTimer);
+    const hold =
+      opts.event === 'goal' || opts.event === 'achievement' || opts.event === 'ely' ? 6500 : 4500;
+    mascotHideTimer = setTimeout(hideMascotBubble, hold);
 
     scheduleMascotIdle();
     return text;
@@ -1512,6 +1539,29 @@
       haptic('light');
       speakMascot({ event: 'idle', preferTip: true, force: true });
     });
+    $('#mascot-bubble')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideMascotBubble();
+    });
+    document.addEventListener(
+      'pointerdown',
+      (e) => {
+        const root = $('#mascot');
+        if (!root || root.hidden || root.contains(e.target)) return;
+        const bubble = $('#mascot-bubble');
+        if (!bubble?.classList.contains('is-visible')) return;
+        hideMascotBubble();
+      },
+      { capture: true }
+    );
+    window.addEventListener(
+      'scroll',
+      () => {
+        const bubble = $('#mascot-bubble');
+        if (bubble?.classList.contains('is-visible')) hideMascotBubble();
+      },
+      { passive: true }
+    );
 
     // Background photo — iOS requires a direct user gesture to open the picker
     const bgInput = $('#bg-photo-input');
