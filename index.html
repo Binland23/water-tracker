@@ -612,11 +612,22 @@
           <label class="toggle-row" for="setting-mascot">
             <span class="toggle-row-text">
               <span class="toggle-row-title">Show Dew</span>
-              <span class="toggle-row-sub">Friendly water drop with tips &amp; pep talks</span>
+              <span class="toggle-row-sub">Tap, hold to squeeze, or drag him around</span>
             </span>
             <input id="setting-mascot" class="toggle-input" type="checkbox" checked />
             <span class="toggle-switch" aria-hidden="true"></span>
           </label>
+          <div id="dew-friendship" class="dew-friendship">
+            <div class="dew-rank-row">
+              <span id="dew-rank-label" class="dew-rank-label">New drop</span>
+              <span id="dew-rank-xp" class="dew-rank-xp">0</span>
+            </div>
+            <div class="dew-rank-track" aria-hidden="true">
+              <div id="dew-rank-fill" class="dew-rank-fill" style="width:0%"></div>
+            </div>
+            <p id="dew-rank-hint" class="dew-rank-hint">Tap, squeeze, or toss him. He likes attention.</p>
+            <button type="button" id="btn-dew-home" class="ghost-btn dew-home-btn">Send Dew home</button>
+          </div>
         </div>
 
         <div class="settings-block bg-photo-block">
@@ -697,41 +708,76 @@
     </div>
 
     <!-- Dew the water-drop mascot (toggle in Settings) -->
-    <div id="mascot" class="mascot" hidden>
-      <div id="mascot-bubble" class="mascot-bubble" role="status" aria-live="polite">
+    <div id="mascot" class="mascot" hidden data-side="right">
+      <div id="mascot-bubble" class="mascot-bubble" role="status" aria-live="polite" aria-hidden="true">
         <p id="mascot-message" class="mascot-message">Hey! I’m Dew.</p>
         <span class="mascot-bubble-tail" aria-hidden="true"></span>
       </div>
-      <button type="button" id="mascot-btn" class="mascot-btn" aria-label="Dew the water drop. Tap for a tip.">
-        <svg class="mascot-svg" viewBox="0 0 64 80" width="56" height="70" aria-hidden="true">
+      <button
+        type="button"
+        id="mascot-btn"
+        class="mascot-btn"
+        aria-label="Dew the water drop. Tap to talk, hold to squeeze, drag to toss."
+      >
+        <svg class="mascot-svg" viewBox="0 0 64 80" width="64" height="80" aria-hidden="true">
           <defs>
             <linearGradient id="dewBody" x1="20%" y1="0%" x2="80%" y2="100%">
+              <stop offset="0%" stop-color="#e7f7fb" stop-opacity="0.55" />
+              <stop offset="50%" stop-color="#b7dbe6" stop-opacity="0.38" />
+              <stop offset="100%" stop-color="#7aa8b6" stop-opacity="0.42" />
+            </linearGradient>
+            <linearGradient id="dewFillDeep" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stop-color="#b8f0ff" />
-              <stop offset="42%" stop-color="#5ec8e8" />
+              <stop offset="45%" stop-color="#5ec8e8" />
               <stop offset="100%" stop-color="#1a7a96" />
             </linearGradient>
+            <linearGradient id="dewFillSurf" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#e8fbff" stop-opacity="0.9" />
+              <stop offset="100%" stop-color="#7ee0ff" stop-opacity="0.2" />
+            </linearGradient>
             <linearGradient id="dewShine" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85" />
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
               <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
             </linearGradient>
             <filter id="dewSoft" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="0.6" result="b" />
+              <feGaussianBlur stdDeviation="0.55" result="b" />
               <feMerge>
                 <feMergeNode in="b" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+            <clipPath id="dewClip">
+              <path d="M32 4 C32 4 10 30 10 48 C10 61 20 72 32 72 C44 72 54 61 54 48 C54 30 32 4 32 4 Z" />
+            </clipPath>
           </defs>
-          <!-- soft shadow -->
-          <ellipse class="mascot-shadow" cx="32" cy="74" rx="16" ry="3.5" fill="rgba(0,0,0,0.22)" />
-          <!-- body: classic drop -->
-          <path
-            class="mascot-body"
-            d="M32 4 C32 4 10 30 10 48 C10 61 20 72 32 72 C44 72 54 61 54 48 C54 30 32 4 32 4 Z"
-            fill="url(#dewBody)"
-            filter="url(#dewSoft)"
-          />
-          <!-- highlight -->
+
+          <ellipse class="mascot-shadow" cx="32" cy="75" rx="15" ry="3.2" fill="rgba(0,0,0,0.22)" />
+
+          <g class="mascot-body">
+            <path
+              d="M32 4 C32 4 10 30 10 48 C10 61 20 72 32 72 C44 72 54 61 54 48 C54 30 32 4 32 4 Z"
+              fill="url(#dewBody)"
+              filter="url(#dewSoft)"
+            />
+            <path
+              d="M32 4 C32 4 10 30 10 48 C10 61 20 72 32 72 C44 72 54 61 54 48 C54 30 32 4 32 4 Z"
+              fill="none"
+              stroke="rgba(180, 230, 245, 0.45)"
+              stroke-width="1.2"
+            />
+          </g>
+
+          <g clip-path="url(#dewClip)">
+            <g class="dew-fill-inner">
+              <rect x="8" y="0" width="48" height="86" fill="url(#dewFillDeep)" />
+              <path
+                class="dew-fill-wave"
+                d="M8 10 Q20 4 32 10 T56 10 V90 H8 Z"
+                fill="url(#dewFillSurf)"
+              />
+            </g>
+          </g>
+
           <ellipse
             class="mascot-shine"
             cx="23"
@@ -741,16 +787,38 @@
             fill="url(#dewShine)"
             transform="rotate(-18 23 34)"
           />
-          <!-- eyes -->
+
+          <g class="dew-acc dew-acc-halo" opacity="0">
+            <ellipse cx="32" cy="8" rx="11" ry="3.2" fill="none" stroke="#f0c14a" stroke-width="1.6" />
+          </g>
+          <g class="dew-acc dew-acc-flame" opacity="0">
+            <path d="M32 2 C30 6 28 7 29 10 C30 12 34 12 35 9 C36 6 33 4 32 2 Z" fill="#ff8a3d" />
+            <path d="M32 5 C31 7 30.5 8 31.2 9.5 C32 11 33.6 10.4 33.4 8.6 C33.2 7 32.4 6 32 5 Z" fill="#ffe27a" />
+          </g>
+          <g class="dew-acc dew-acc-sun" opacity="0">
+            <circle cx="14" cy="16" r="4.2" fill="#ffd36a" />
+            <path d="M14 9.5v-2.2M14 24.7v-2.2M7.3 16H5.1M22.9 16h-2.2M8.8 10.8l-1.5-1.5M20.7 22.7l-1.5-1.5M20.7 10.8l-1.5 1.5M8.8 21.2l-1.5 1.5" stroke="#ffd36a" stroke-width="1.2" stroke-linecap="round" />
+          </g>
+          <g class="dew-acc dew-acc-cap" opacity="0">
+            <path d="M22 16 Q32 6 44 18 Q38 14 32 14 Q26 14 22 16 Z" fill="#3d4f8c" />
+            <circle cx="44" cy="18" r="2.4" fill="#f2d36b" />
+          </g>
+          <g class="dew-acc dew-acc-bow" opacity="0">
+            <path d="M44 38 L50 34 L50 42 Z" fill="#ff8fb3" />
+            <path d="M44 38 L38 34 L38 42 Z" fill="#ff8fb3" />
+            <circle cx="44" cy="38" r="1.8" fill="#ffe0ea" />
+          </g>
+          <g class="dew-acc dew-acc-bolt" opacity="0">
+            <path d="M50 20 L44 30 h5 L46 40 L56 28 h-5 L50 20 Z" fill="#c084fc" />
+          </g>
+
           <g class="mascot-face">
             <ellipse class="mascot-eye mascot-eye-l" cx="24" cy="46" rx="3.2" ry="3.8" fill="#0b2a36" />
             <ellipse class="mascot-eye mascot-eye-r" cx="40" cy="46" rx="3.2" ry="3.8" fill="#0b2a36" />
             <circle class="mascot-eye-shine" cx="25.2" cy="44.6" r="1.1" fill="#e8fbff" />
             <circle class="mascot-eye-shine" cx="41.2" cy="44.6" r="1.1" fill="#e8fbff" />
-            <!-- cheeks -->
             <ellipse class="mascot-cheek" cx="17.5" cy="52" rx="3.5" ry="2.2" fill="#7ee0ff" opacity="0.45" />
             <ellipse class="mascot-cheek" cx="46.5" cy="52" rx="3.5" ry="2.2" fill="#7ee0ff" opacity="0.45" />
-            <!-- mouths (swapped by mood class on .mascot) -->
             <path
               class="mascot-mouth mascot-mouth-default"
               d="M26 54 Q32 59 38 54"
@@ -777,19 +845,31 @@
               stroke-linecap="round"
               opacity="0"
             />
+            <ellipse class="mascot-mouth mascot-mouth-o" cx="32" cy="55.5" rx="2.4" ry="2.8" fill="#0b2a36" opacity="0" />
+            <g class="mascot-mouth mascot-mouth-dizzy" opacity="0">
+              <path d="M27 54 Q30 57 33 54 Q30 51 27 54" fill="none" stroke="#0b2a36" stroke-width="1.5" />
+              <path d="M35 54 Q38 57 41 54 Q38 51 35 54" fill="none" stroke="#0b2a36" stroke-width="1.5" />
+            </g>
+            <g class="dew-acc dew-acc-shades" opacity="0">
+              <rect x="19" y="43" width="10" height="7" rx="2" fill="#1a2430" />
+              <rect x="35" y="43" width="10" height="7" rx="2" fill="#1a2430" />
+              <path d="M29 46.5 h6" stroke="#1a2430" stroke-width="1.6" />
+              <path d="M21 45.5 h6" stroke="#7ee0ff" stroke-width="0.8" opacity="0.55" />
+              <path d="M37 45.5 h6" stroke="#7ee0ff" stroke-width="0.8" opacity="0.55" />
+            </g>
           </g>
-          <!-- sleepy lids (hidden unless mood) -->
+
           <g class="mascot-lids" opacity="0">
             <path d="M20 46 Q24 42 28 46" fill="none" stroke="#0b2a36" stroke-width="2" stroke-linecap="round" />
             <path d="M36 46 Q40 42 44 46" fill="none" stroke="#0b2a36" stroke-width="2" stroke-linecap="round" />
           </g>
-          <!-- sparkles for zap/cheer -->
           <g class="mascot-sparkles" opacity="0">
             <path d="M50 18 L51.5 22 L55.5 23.5 L51.5 25 L50 29 L48.5 25 L44.5 23.5 L48.5 22 Z" fill="#f5e6ff" />
             <path d="M12 22 L13 24.5 L15.5 25.5 L13 26.5 L12 29 L11 26.5 L8.5 25.5 L11 24.5 Z" fill="#b8f0ff" />
           </g>
         </svg>
       </button>
+      <div id="dew-fx" class="dew-fx" aria-hidden="true"></div>
     </div>
 
     <!-- Classic scripts so double-click / file:// works (ES modules do not). -->

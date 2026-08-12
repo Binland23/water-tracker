@@ -346,6 +346,43 @@
       icon: '👀',
       category: 'Explorer',
     },
+
+    // —— Dew ——
+    {
+      id: 'dew-hello',
+      title: 'Boop',
+      desc: 'Pet Dew for the first time.',
+      icon: '💧',
+      category: 'Dew',
+    },
+    {
+      id: 'dew-squish',
+      title: 'Stress Drop',
+      desc: 'Give Dew a long squeeze.',
+      icon: '🤗',
+      category: 'Dew',
+    },
+    {
+      id: 'dew-yeet',
+      title: 'Yeet the Droplet',
+      desc: 'Fling Dew across the screen.',
+      icon: '🌪️',
+      category: 'Dew',
+    },
+    {
+      id: 'dew-bestie',
+      title: 'Soul Pals',
+      desc: 'Reach Bestie rank with Dew.',
+      icon: '🎀',
+      category: 'Dew',
+    },
+    {
+      id: 'dew-popular',
+      title: 'Popular Puddle',
+      desc: 'Pet Dew 20 times.',
+      icon: '🫶',
+      category: 'Dew',
+    },
     {
       id: 'collector',
       title: 'Collector',
@@ -737,6 +774,13 @@
     if (ctx.calendarOpened) want.add('calendar-peek');
     if (ctx.achievementsOpened) want.add('achievements-tourist');
 
+    const dew = store.dew || {};
+    mark('dew-hello', (dew.pets || 0) >= 1);
+    mark('dew-squish', (dew.squeezes || 0) >= 1);
+    mark('dew-yeet', (dew.flings || 0) >= 1);
+    mark('dew-bestie', (dew.friendship || 0) >= 40);
+    mark('dew-popular', (dew.pets || 0) >= 20);
+
     const now = Date.now();
     const newly = [];
     for (const id of want) {
@@ -785,6 +829,7 @@
       'Lifetime',
       'Habits',
       'Explorer',
+      'Dew',
       'Meta',
     ];
     const byCat = new Map();

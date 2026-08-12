@@ -30,6 +30,7 @@
   let store = storage.load();
   if (!store.achievements) store.achievements = {};
   if (typeof store.mascotEnabled !== 'boolean') store.mascotEnabled = true;
+  if (!store.dew) store.dew = storage.normalizeDew ? storage.normalizeDew(null) : {};
   /** @type {{ entry: object, timer: number } | null} */
   let undoState = null;
   let lastGoalReached = false;
@@ -44,14 +45,6 @@
   /** @type {string[]} */
   let achievementToastQueue = [];
   let achievementToastBusy = false;
-  /** @type {ReturnType<typeof setTimeout> | null} */
-  let mascotIdleTimer = null;
-  /** Auto-dismiss timer for Dew's speech bubble */
-  /** @type {ReturnType<typeof setTimeout> | null} */
-  let mascotHideTimer = null;
-  /** Last mascot message text (avoid immediate repeats) */
-  let lastMascotMessage = '';
-
   /** Calendar view state */
   const calState = {
     year: new Date().getFullYear(),
@@ -197,7 +190,7 @@
       backdrop.classList.add('is-open');
     });
     document.body.classList.add('sheet-open');
-    hideMascotBubble();
+    if (mascotApi && typeof mascotApi.hide === 'function') mascotApi.hide();
     haptic('light');
   }
 
@@ -315,7 +308,11 @@
         for (const id of newly) achievementToastQueue.push(id);
         drainAchievementToasts();
         // Dew celebrates badges after a beat (avoid fighting toast queue)
-        setTimeout(() => speakMascot({ event: 'achievement' }), 800);
+        setTimeout(() => {
+          if (!document.body.classList.contains('sheet-open')) {
+            speakMascot({ event: 'achievement' });
+          }
+        }, 800);
       }
       updateAchievementsBadge();
       if ($('#achievements-sheet')?.classList.contains('is-open')) {
@@ -349,37 +346,25 @@
   }
 
   function updateMascotVisibility() {
-    const root = $('#mascot');
-    if (!root) return;
     const show = isMascotEnabled();
-    root.hidden = !show;
-    root.setAttribute('aria-hidden', show ? 'false' : 'true');
-    document.body.classList.toggle('has-mascot', show);
     const toggle = $('#setting-mascot');
     if (toggle && document.activeElement !== toggle) {
       toggle.checked = show;
     }
-    if (!show) {
-      hideMascotBubble();
-      if (mascotIdleTimer) {
-        clearTimeout(mascotIdleTimer);
-        mascotIdleTimer = null;
+    if (mascotApi && typeof mascotApi.sync === 'function') {
+      mascotApi.sync();
+    } else {
+      const root = $('#mascot');
+      if (root) {
+        root.hidden = !show;
+        root.setAttribute('aria-hidden', show ? 'false' : 'true');
       }
     }
+    updateDewSettingsUi();
   }
 
   function hideMascotBubble() {
-    if (mascotHideTimer) {
-      clearTimeout(mascotHideTimer);
-      mascotHideTimer = null;
-    }
-    const root = $('#mascot');
-    const bubble = $('#mascot-bubble');
-    if (bubble) {
-      bubble.classList.remove('is-visible');
-      bubble.setAttribute('aria-hidden', 'true');
-    }
-    if (root) root.classList.remove('is-speaking');
+    if (mascotApi && typeof mascotApi.hide === 'function') mascotApi.hide();
   }
 
   /**
@@ -388,68 +373,48 @@
    */
   function speakMascot(opts = {}) {
     if (!isMascotEnabled() || !mascotApi) return '';
-    const root = $('#mascot');
-    const msgEl = $('#mascot-message');
-    const bubble = $('#mascot-bubble');
-    if (!root || !msgEl || root.hidden) return '';
-
-    const ctx = mascotContext(opts);
-    let text = mascotApi.messageFor(ctx);
-    // Avoid immediate identical repeats when user taps
-    if (opts.force && text === lastMascotMessage) {
-      text = mascotApi.messageFor({ ...ctx, preferTip: true, event: 'idle' });
-    }
-    lastMascotMessage = text;
-    msgEl.textContent = text;
-
-    const mood = mascotApi.moodFor(ctx);
-    root.dataset.mood = mood;
-    root.classList.remove('is-speaking', 'is-bounce');
-    void root.offsetWidth;
-    root.classList.add('is-speaking', 'is-bounce');
-    if (bubble) {
-      bubble.classList.add('is-visible');
-      bubble.setAttribute('aria-hidden', 'false');
-    }
-
-    // Clear bounce class after anim
-    clearTimeout(speakMascot._bounceT);
-    speakMascot._bounceT = setTimeout(() => root.classList.remove('is-bounce'), 520);
-
-    if (mascotHideTimer) clearTimeout(mascotHideTimer);
-    const hold =
-      opts.event === 'goal' || opts.event === 'achievement' || opts.event === 'ely' ? 6500 : 4500;
-    mascotHideTimer = setTimeout(hideMascotBubble, hold);
-
-    scheduleMascotIdle();
-    return text;
+    if (typeof mascotApi.speak === 'function') return mascotApi.speak(opts);
+    return '';
   }
 
-  function scheduleMascotIdle() {
-    if (!isMascotEnabled()) return;
-    if (mascotIdleTimer) clearTimeout(mascotIdleTimer);
-    // Occasional idle chatter every ~45–75s while app is open
-    const delay = 45000 + Math.random() * 30000;
-    mascotIdleTimer = setTimeout(() => {
-      if (!isMascotEnabled()) return;
-      if (document.hidden) {
-        scheduleMascotIdle();
-        return;
-      }
-      // Don't chatter over open sheets
-      if (document.body.classList.contains('sheet-open')) {
-        scheduleMascotIdle();
-        return;
-      }
-      speakMascot({ event: 'idle', preferTip: Math.random() < 0.5 });
-    }, delay);
+  function updateDewSettingsUi() {
+    const block = $('#dew-friendship');
+    if (!block) return;
+    const show = isMascotEnabled();
+    block.hidden = !show;
+    if (!show) return;
+    const dew = store.dew || {};
+    const rank =
+      mascotApi && typeof mascotApi.rankFor === 'function'
+        ? mascotApi.rankFor(dew.friendship || 0)
+        : { label: 'New drop', xp: dew.friendship || 0, pct: 0, hint: '', next: null };
+    const label = $('#dew-rank-label');
+    const xp = $('#dew-rank-xp');
+    const fill = $('#dew-rank-fill');
+    const hint = $('#dew-rank-hint');
+    if (label) label.textContent = rank.label;
+    if (xp) {
+      xp.textContent = rank.next
+        ? `${rank.xp} / ${rank.next.min}`
+        : `${rank.xp}`;
+    }
+    if (fill) fill.style.width = `${Math.round((rank.pct || 0) * 100)}%`;
+    if (hint) {
+      const extras = [];
+      if (dew.pets) extras.push(`${dew.pets} pet${dew.pets === 1 ? '' : 's'}`);
+      if (dew.squeezes) extras.push(`${dew.squeezes} squeeze${dew.squeezes === 1 ? '' : 's'}`);
+      hint.textContent = extras.length ? `${rank.hint} · ${extras.join(' · ')}` : rank.hint;
+    }
   }
 
   function setMascotEnabled(enabled) {
     storage.setMascotEnabled(store, enabled);
+    if (mascotApi && typeof mascotApi.setEnabled === 'function') {
+      if (enabled) mascotApi.setEnabled(true);
+      else mascotApi.sync();
+    }
     updateMascotVisibility();
     if (enabled) {
-      speakMascot({ event: 'open' });
       showToast('Dew is back 💧');
     } else {
       showToast('Dew is hiding. Re-enable anytime in Settings.');
@@ -1533,35 +1498,10 @@
       setMascotEnabled(on);
       haptic('light');
     });
-
-    $('#mascot-btn')?.addEventListener('click', () => {
-      if (!isMascotEnabled()) return;
+    $('#btn-dew-home')?.addEventListener('click', () => {
+      if (mascotApi && typeof mascotApi.goHome === 'function') mascotApi.goHome();
       haptic('light');
-      speakMascot({ event: 'idle', preferTip: true, force: true });
     });
-    $('#mascot-bubble')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      hideMascotBubble();
-    });
-    document.addEventListener(
-      'pointerdown',
-      (e) => {
-        const root = $('#mascot');
-        if (!root || root.hidden || root.contains(e.target)) return;
-        const bubble = $('#mascot-bubble');
-        if (!bubble?.classList.contains('is-visible')) return;
-        hideMascotBubble();
-      },
-      { capture: true }
-    );
-    window.addEventListener(
-      'scroll',
-      () => {
-        const bubble = $('#mascot-bubble');
-        if (bubble?.classList.contains('is-visible')) hideMascotBubble();
-      },
-      { passive: true }
-    );
 
     // Background photo — iOS requires a direct user gesture to open the picker
     const bgInput = $('#bg-photo-input');
@@ -1787,9 +1727,22 @@
       storage.saveAchievements(store);
     }
     updateAchievementsBadge();
+    if (mascotApi && typeof mascotApi.mount === 'function') {
+      mascotApi.mount({
+        getContext: () => mascotContext(),
+        isEnabled: isMascotEnabled,
+        getState: () => store.dew,
+        saveState: (dew) => {
+          if (typeof storage.saveDew === 'function') storage.saveDew(store, dew);
+          else store.dew = dew;
+          updateDewSettingsUi();
+        },
+        haptic,
+        onPlay: () => processAchievements(),
+      });
+    }
     updateMascotVisibility();
     if (isMascotEnabled()) {
-      // Small delay so first paint settles
       setTimeout(() => speakMascot({ event: 'open' }), 480);
     }
     handleDeepLink();

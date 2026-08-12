@@ -15,7 +15,42 @@
       achievements: {},
       /** Show Dew the water-drop mascot (default on). */
       mascotEnabled: true,
+      /** Playful Dew companion state (friendship, park position). */
+      dew: defaultDew(),
     };
+  }
+
+  function defaultDew() {
+    return {
+      friendship: 0,
+      pets: 0,
+      squeezes: 0,
+      flings: 0,
+      lastPlayAt: 0,
+      lastPlayDay: '',
+      x: null,
+      y: null,
+    };
+  }
+
+  function normalizeDew(raw) {
+    const d = defaultDew();
+    if (!raw || typeof raw !== 'object') return d;
+    const n = (v) => {
+      const x = Number(v);
+      return Number.isFinite(x) ? x : 0;
+    };
+    d.friendship = clamp(Math.round(n(raw.friendship)), 0, 250);
+    d.pets = Math.max(0, Math.round(n(raw.pets)));
+    d.squeezes = Math.max(0, Math.round(n(raw.squeezes)));
+    d.flings = Math.max(0, Math.round(n(raw.flings)));
+    d.lastPlayAt = Math.max(0, Math.round(n(raw.lastPlayAt)));
+    if (typeof raw.lastPlayDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.lastPlayDay)) {
+      d.lastPlayDay = raw.lastPlayDay;
+    }
+    if (typeof raw.x === 'number' && Number.isFinite(raw.x)) d.x = raw.x;
+    if (typeof raw.y === 'number' && Number.isFinite(raw.y)) d.y = raw.y;
+    return d;
   }
 
   function normalizeEntry(e) {
@@ -73,6 +108,7 @@
         entries: data.entries.map(normalizeEntry).filter(Boolean),
         achievements,
         mascotEnabled: data.mascotEnabled === false ? false : true,
+        dew: normalizeDew(data.dew),
       };
     } catch {
       return defaultStore();
@@ -169,6 +205,12 @@
   function setMascotEnabled(store, enabled) {
     store.mascotEnabled = !!enabled;
     save(store);
+  }
+
+  function saveDew(store, dew) {
+    store.dew = normalizeDew(dew);
+    save(store);
+    return store.dew;
   }
 
   function weekTotals(store, days = 7) {
@@ -325,6 +367,9 @@
     setGoal,
     setUnit,
     setMascotEnabled,
+    defaultDew,
+    normalizeDew,
+    saveDew,
     weekTotals,
     monthTotals,
     daysWithEntries,

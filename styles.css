@@ -1781,6 +1781,63 @@ body.electrolytes-charged {
   line-height: 1.35;
 }
 
+.dew-friendship {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dew-friendship[hidden] {
+  display: none !important;
+}
+
+.dew-rank-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dew-rank-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.dew-rank-xp {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dew-rank-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.dew-rank-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  transition: width 0.35s var(--ease-out);
+}
+
+.dew-rank-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.dew-home-btn {
+  align-self: flex-start;
+}
+
 .toggle-input {
   position: absolute;
   opacity: 0;
@@ -2469,16 +2526,31 @@ body.is-landscape-locked .mascot {
 
 /* —— Dew the mascot —— */
 .mascot {
+  --look-x: 0px;
+  --look-y: 0px;
   position: fixed;
   right: max(12px, var(--safe-right));
-  bottom: max(14px, var(--safe-bottom));
+  bottom: max(18px, calc(var(--safe-bottom) + 8px));
   z-index: 35;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  max-width: min(280px, calc(100vw - 24px));
+  width: 72px;
+  height: 86px;
   pointer-events: none;
+  transition: left 0.45s var(--ease-out), top 0.45s var(--ease-out);
+}
+
+.mascot.is-free {
+  right: auto;
+  bottom: auto;
+}
+
+.mascot.is-dragging,
+.mascot.is-fling {
+  transition: none;
+  z-index: 80;
+}
+
+.mascot.is-peek {
+  transition: left 0.55s var(--ease-spring), top 0.55s var(--ease-spring);
 }
 
 .mascot[hidden] {
@@ -2486,8 +2558,11 @@ body.is-landscape-locked .mascot {
 }
 
 .mascot-bubble {
-  position: relative;
-  max-width: 100%;
+  position: absolute;
+  right: 0;
+  bottom: 92px;
+  width: max-content;
+  max-width: min(240px, calc(100vw - 28px));
   padding: 10px 12px;
   border-radius: 16px 16px 6px 16px;
   background: color-mix(in srgb, var(--bg-elevated) 92%, var(--accent));
@@ -2499,6 +2574,29 @@ body.is-landscape-locked .mascot {
     opacity 0.28s var(--ease-out),
     transform 0.32s var(--ease-spring);
   pointer-events: none;
+  z-index: 2;
+}
+
+.mascot[data-side="left"] .mascot-bubble {
+  right: auto;
+  left: 0;
+  border-radius: 16px 16px 16px 6px;
+}
+
+.mascot[data-flip="1"] .mascot-bubble {
+  bottom: auto;
+  top: 90px;
+  border-radius: 6px 16px 16px 16px;
+}
+
+.mascot[data-flip="1"][data-side="left"] .mascot-bubble {
+  border-radius: 16px 6px 16px 16px;
+}
+
+.mascot[data-flip="1"] .mascot-bubble-tail {
+  bottom: auto;
+  top: -6px;
+  transform: rotate(225deg);
 }
 
 .mascot-bubble.is-visible {
@@ -2530,32 +2628,83 @@ body.is-landscape-locked .mascot {
   border-radius: 0 0 3px 0;
 }
 
+.mascot[data-side="left"] .mascot-bubble-tail {
+  right: auto;
+  left: 18px;
+}
+
 .mascot-btn {
   pointer-events: auto;
-  width: 64px;
-  height: 76px;
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: end center;
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 0;
   background: transparent;
   filter: drop-shadow(0 8px 16px rgba(10, 40, 55, 0.35));
-  transition: transform 0.2s var(--ease-out);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .mascot-btn:active {
   transform: scale(0.94);
 }
 
+.mascot.is-dragging .mascot-btn:active {
+  transform: none;
+}
+
 .mascot-svg {
   display: block;
-  width: 56px;
-  height: 70px;
+  width: 64px;
+  height: 80px;
   overflow: visible;
 }
 
 .mascot-body {
   transform-origin: 32px 48px;
+}
+
+@media (prefers-color-scheme: light) {
+  .mascot-body path:last-child {
+    stroke: rgba(20, 80, 100, 0.28);
+  }
+}
+
+.mascot-face {
+  transform: translate(var(--look-x), var(--look-y));
+  transition: transform 0.16s var(--ease-out);
+}
+
+.mascot-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.dew-fill-inner {
+  transform: translate(0, 42px);
+  transition: transform 0.55s var(--ease-out);
+}
+
+.dew-fill-wave {
+  animation: dewFillBob 2.8s ease-in-out infinite;
+  transform-origin: 32px 10px;
+}
+
+.dew-acc {
+  pointer-events: none;
+}
+
+.mascot[data-hat="sun"] .dew-acc-sun,
+.mascot[data-hat="shades"] .dew-acc-shades,
+.mascot[data-hat="cap"] .dew-acc-cap,
+.mascot[data-streak="1"] .dew-acc-flame,
+.mascot[data-halo="1"] .dew-acc-halo,
+.mascot[data-bow="1"] .dew-acc-bow,
+.mascot[data-bolt="1"] .dew-acc-bolt {
+  opacity: 1 !important;
 }
 
 .mascot.is-bounce .mascot-svg {
@@ -2564,6 +2713,93 @@ body.is-landscape-locked .mascot {
 
 .mascot.is-speaking .mascot-body {
   animation: dewWobble 2.4s var(--ease-out) infinite;
+}
+
+.mascot.is-dragging .mascot-svg {
+  transform: scale(1.08) rotate(-8deg);
+  filter: drop-shadow(0 18px 16px rgba(10, 30, 40, 0.35));
+}
+
+.mascot.is-squish .mascot-body {
+  transform: scale(1.2, 0.74);
+}
+
+.mascot.is-hop .mascot-svg {
+  animation: dewBounce 0.46s var(--ease-spring);
+}
+
+.mascot.is-spin .mascot-svg {
+  animation: dewSpin 0.7s var(--ease-spring);
+}
+
+.mascot.is-dance .mascot-svg {
+  animation: dewDance 0.7s var(--ease-out) infinite;
+}
+
+.mascot.is-gulp .mascot-body {
+  animation: dewGulp 0.6s var(--ease-out);
+}
+
+.mascot.is-gulp .dew-fill-inner {
+  animation: dewSlosh 0.6s var(--ease-out);
+}
+
+.mascot.is-stretch .mascot-body {
+  animation: dewStretch 0.7s var(--ease-out);
+}
+
+.mascot.is-dodge .mascot-svg {
+  animation: dewDodge 0.55s var(--ease-spring);
+}
+
+.mascot.is-zap-pop .mascot-body {
+  filter: drop-shadow(0 0 8px rgba(192, 132, 252, 0.8));
+}
+
+.mascot.is-glance-left {
+  --look-x: -3px;
+}
+
+.mascot.is-glance-right {
+  --look-x: 3px;
+}
+
+.mascot.is-blink .mascot-eye {
+  transform: scaleY(0.12);
+}
+
+.mascot.is-blink .mascot-eye-shine {
+  opacity: 0;
+}
+
+.dew-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 3;
+}
+
+.dew-bit {
+  position: absolute;
+  font-size: 12px;
+  line-height: 1;
+  animation: dewBit 0.85s var(--ease-out) forwards;
+  pointer-events: none;
+}
+
+@keyframes dewBit {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4) rotate(0deg);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx, 0), var(--dy, -36px)) scale(0.85) rotate(var(--rot, 12deg));
+  }
 }
 
 @keyframes dewBounce {
@@ -2588,6 +2824,93 @@ body.is-landscape-locked .mascot {
   }
 }
 
+@keyframes dewSpin {
+  0% {
+    transform: rotate(0) scale(1);
+  }
+  55% {
+    transform: rotate(200deg) scale(1.08);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes dewDance {
+  0%,
+  100% {
+    transform: rotate(-10deg) translateY(0);
+  }
+  25% {
+    transform: rotate(12deg) translateY(-12px);
+  }
+  50% {
+    transform: rotate(-6deg) translateY(-2px);
+  }
+  75% {
+    transform: rotate(10deg) translateY(-10px);
+  }
+}
+
+@keyframes dewGulp {
+  0% {
+    transform: scale(1, 1);
+  }
+  35% {
+    transform: scale(1.14, 0.84);
+  }
+  70% {
+    transform: scale(0.94, 1.1);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+@keyframes dewSlosh {
+  0% {
+    transform: translate(0, var(--slosh-from, 24px));
+  }
+  40% {
+    transform: translate(0, calc(var(--slosh-from, 24px) - 10px));
+  }
+  100% {
+    transform: translate(0, var(--slosh-from, 24px));
+  }
+}
+
+@keyframes dewStretch {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(0.9, 1.14) translateY(-3px);
+  }
+}
+
+@keyframes dewDodge {
+  0% {
+    transform: scale(1) rotate(0);
+  }
+  40% {
+    transform: scale(0.86, 1.1) rotate(-18deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes dewFillBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.6px);
+  }
+}
+
 /* Moods */
 .mascot[data-mood="cheer"] .mascot-sparkles,
 .mascot[data-mood="zap"] .mascot-sparkles {
@@ -2599,10 +2922,7 @@ body.is-landscape-locked .mascot {
   filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.65));
 }
 
-.mascot[data-mood="sleepy"] .mascot-eye {
-  opacity: 0;
-}
-
+.mascot[data-mood="sleepy"] .mascot-eye,
 .mascot[data-mood="sleepy"] .mascot-eye-shine {
   opacity: 0;
 }
@@ -2616,13 +2936,17 @@ body.is-landscape-locked .mascot {
 }
 
 .mascot .mascot-mouth-big,
-.mascot .mascot-mouth-sleepy {
+.mascot .mascot-mouth-sleepy,
+.mascot .mascot-mouth-o,
+.mascot .mascot-mouth-dizzy {
   opacity: 0;
 }
 
 .mascot[data-mood="cheer"] .mascot-mouth-default,
 .mascot[data-mood="happy"] .mascot-mouth-default,
-.mascot[data-mood="sleepy"] .mascot-mouth-default {
+.mascot[data-mood="sleepy"] .mascot-mouth-default,
+.mascot[data-mood="o"] .mascot-mouth-default,
+.mascot[data-mood="dizzy"] .mascot-mouth-default {
   opacity: 0;
 }
 
@@ -2635,8 +2959,17 @@ body.is-landscape-locked .mascot {
   opacity: 1;
 }
 
-.mascot[data-mood="cheer"] .mascot-cheek {
-  opacity: 0.7;
+.mascot[data-mood="o"] .mascot-mouth-o {
+  opacity: 1;
+}
+
+.mascot[data-mood="dizzy"] .mascot-mouth-dizzy {
+  opacity: 1;
+}
+
+.mascot[data-mood="cheer"] .mascot-cheek,
+.mascot.is-squish .mascot-cheek {
+  opacity: 0.75;
 }
 
 @keyframes dewSpark {
@@ -2654,14 +2987,9 @@ body.is-landscape-locked .mascot {
   }
 }
 
-/* Lift above home-indicator when log is long; stay clear of undo bar */
-body:not(.sheet-open) .mascot {
-  bottom: max(18px, calc(var(--safe-bottom) + 8px));
-}
-
-/* Don't cover open sheets awkwardly — tuck mascot lower opacity */
+/* Don't cover open sheets awkwardly */
 body.sheet-open .mascot {
-  opacity: 0.35;
+  opacity: 0.28;
   pointer-events: none;
 }
 
@@ -2669,16 +2997,35 @@ body.sheet-open .mascot-btn {
   pointer-events: none;
 }
 
-body.is-celebrating .mascot,
+body.is-celebrating .mascot {
+  opacity: 1;
+}
+
+body.is-celebrating .mascot-svg {
+  animation: dewDance 0.7s var(--ease-out) infinite;
+}
+
 body.electrolytes-charged .mascot {
-  opacity: 0.2;
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .mascot,
+  .dew-fill-inner,
+  .mascot-face {
+    transition: none;
+  }
   .mascot.is-bounce .mascot-svg,
   .mascot.is-speaking .mascot-body,
+  .mascot.is-spin .mascot-svg,
+  .mascot.is-dance .mascot-svg,
+  .mascot.is-gulp .mascot-body,
+  .mascot.is-hop .mascot-svg,
+  .dew-fill-wave,
+  .dew-bit,
   .mascot[data-mood="cheer"] .mascot-sparkles,
-  .mascot[data-mood="zap"] .mascot-sparkles {
+  .mascot[data-mood="zap"] .mascot-sparkles,
+  body.is-celebrating .mascot-svg {
     animation: none;
   }
 }
