@@ -385,9 +385,12 @@
     const total = achievements.totalCount();
     if (unseen > 0) {
       badge.hidden = false;
+      badge.removeAttribute('aria-hidden');
       badge.textContent = String(unseen);
     } else {
       badge.hidden = true;
+      badge.setAttribute('aria-hidden', 'true');
+      badge.textContent = '';
     }
     const tab = document.querySelector('.tab-btn[data-nav="trophies"]');
     if (tab) {
@@ -708,7 +711,10 @@
 
   function getOwalaBottle() {
     const bottles = store.bottles && store.bottles.length ? store.bottles : storage.defaultBottles();
-    return bottles.find((b) => b.id === 'owala') || storage.defaultBottles()[0];
+    const match = storage.isOwalaBottle
+      ? bottles.find((b) => storage.isOwalaBottle(b))
+      : bottles.find((b) => b.id === 'owala');
+    return match || storage.defaultBottles()[0];
   }
 
   function logBottle(bottle) {
@@ -729,7 +735,7 @@
 
     const row = $('#bottles-row');
     if (!row) return;
-    const extras = bottles.filter((b) => b.id !== 'owala');
+    const extras = bottles.filter((b) => (storage.isOwalaBottle ? !storage.isOwalaBottle(b) : b.id !== 'owala'));
     row.innerHTML = extras
       .map((b) => {
         const ml = Math.round(ozToMl(b.oz));

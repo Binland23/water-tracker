@@ -45,6 +45,7 @@
       entries: [],
       achievements: {},
       achievementsSeen: {},
+      achievementsSeenMigrated: true,
       mascotEnabled: true,
       dew: defaultDew(),
     };
@@ -77,6 +78,28 @@
     const id = String(b.id || uid()).slice(0, 40);
     const label = String(b.label || 'Bottle').trim().slice(0, 28) || 'Bottle';
     return { id, label, oz: clamp(oz, 1, 200), featured: b.featured !== false };
+  }
+
+  function isOwalaBottle(b) {
+    if (!b) return false;
+    if (b.id === 'owala') return true;
+    return String(b.label || '').trim().toLowerCase() === 'owala';
+  }
+
+  function normalizeBottles(raw) {
+    const list = Array.isArray(raw) ? raw.map(normalizeBottle).filter(Boolean) : [];
+    const source = list.find((b) => b.id === 'owala') || list.find(isOwalaBottle) || defaultBottles()[0];
+    const owala = { id: 'owala', label: 'Owala', oz: source.oz || 24, featured: true };
+    const extras = [];
+    const seen = new Set();
+    for (const b of list) {
+      if (isOwalaBottle(b)) continue;
+      const key = `${String(b.label).trim().toLowerCase()}|${b.oz}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      extras.push(b);
+    }
+    return [owala, ...extras];
   }
 
   function normalizeCustomDrink(d) {
@@ -152,11 +175,14 @@
     const base = defaultStore();
     if (!data || typeof data !== 'object') return base;
     const theme = data.theme === 'dark' || data.theme === 'light' ? data.theme : 'system';
-    const bottles = Array.isArray(data.bottles)
-      ? data.bottles.map(normalizeBottle).filter(Boolean)
-      : defaultBottles();
-    if (!bottles.some((b) => b.id === 'owala')) {
-      bottles.unshift(defaultBottles()[0]);
+    const bottles = normalizeBottles(data.bottles);
+    const achievements = normalizeAchievements(data.achievements);
+    let achievementsSeen = normalizeAchievements(data.achievementsSeen);
+    // First launch of unseen-tracking: existing unlocks are not "new".
+    // Without this, the trophies badge shows the lifetime total (e.g. 31).
+    const seenMigrated = data.achievementsSeenMigrated === true;
+    if (!seenMigrated && Object.keys(achievementsSeen).length === 0) {
+      achievementsSeen = { ...achievements };
     }
     return {
       version: 2,
@@ -176,8 +202,9 @@
       paceWins: Math.max(0, Math.round(Number(data.paceWins) || 0)),
       lastPaceDay: typeof data.lastPaceDay === 'string' ? data.lastPaceDay : '',
       entries: Array.isArray(data.entries) ? data.entries.map(normalizeEntry).filter(Boolean) : [],
-      achievements: normalizeAchievements(data.achievements),
-      achievementsSeen: normalizeAchievements(data.achievementsSeen),
+      achievements,
+      achievementsSeen,
+      achievementsSeenMigrated: true,
       mascotEnabled: data.mascotEnabled === false ? false : true,
       dew: normalizeDew(data.dew),
     };
@@ -195,7 +222,15 @@
   function load() {
     try {
       const raw2 = localStorage.getItem(STORAGE_KEY);
-      if (raw2) return normalize(JSON.parse(raw2));
+      if (raw2) {
+        const parsed = JSON.parse(raw2);
+        const store = normalize(parsed);
+        const owalaCount = Array.isArray(parsed.bottles)
+          ? parsed.bottles.filter((b) => b && (b.id === 'owala' || String(b.label || '').trim().toLowerCase() === 'owala')).length
+          : 0;
+        if (parsed.achievementsSeenMigrated !== true || owalaCount !== 1) save(store);
+        return store;
+      }
       const raw1 = localStorage.getItem(V1_KEY);
       if (raw1) {
         const migrated = migrateFromV1(JSON.parse(raw1));
@@ -379,6 +414,16 @@
   function addBottle(store, { label, oz }) {
     const bottle = normalizeBottle({ id: uid(), label, oz, featured: true });
     if (!bottle) return null;
+    if (isOwalaBottle(bottle)) {
+      const existing = (store.bottles || []).find((b) => b.id === 'owala') || defaultBottles()[0];
+      existing.id = 'owala';
+      existing.label = 'Owala';
+      existing.oz = bottle.oz;
+      existing.featured = true;
+      store.bottles = normalizeBottles([existing, ...(store.bottles || [])]);
+      save(store);
+      return existing;
+    }
     store.bottles.push(bottle);
     save(store);
     return bottle;
@@ -555,6 +600,8 @@
       ...incoming,
       achievements: keepAchievements,
       achievementsSeen: keepSeen,
+      achievementsSeenMigrated:
+        incoming.achievementsSeenMigrated === true || Object.keys(keepSeen).length > 0,
       onboarded: true,
     });
     Object.keys(store).forEach((k) => {
@@ -636,5 +683,6 @@
     importJson,
     saveAchievements,
     defaultBottles,
+    isOwalaBottle,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

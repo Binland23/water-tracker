@@ -1,5 +1,5 @@
 // Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = 'water-tracker-v26';
+const CACHE_VERSION = 'water-tracker-v27';
 
 const PRECACHE = [
   './',
@@ -31,6 +31,10 @@ self.addEventListener('install', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
@@ -56,6 +60,24 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match('index.html'))
+    );
+    return;
+  }
+
+  const url = new URL(request.url);
+  const networkFirst = /\.(js|css)$/i.test(url.pathname) || url.pathname.endsWith('/sw.js');
+
+  if (networkFirst) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request, { ignoreSearch: true }))
     );
     return;
   }

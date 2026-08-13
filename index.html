@@ -22,8 +22,8 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="css/fx.css" />
+    <link rel="stylesheet" href="styles.css?v=27" />
+    <link rel="stylesheet" href="css/fx.css?v=27" />
     <script>
       (function () {
         var standalone =
@@ -912,20 +912,26 @@
       <div id="dew-fx" class="dew-fx" aria-hidden="true"></div>
     </div>
 
-    <script src="js/utils.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/haptics.js"></script>
-    <script src="js/sound.js"></script>
-    <script src="js/reminders.js"></script>
-    <script src="js/achievements.js"></script>
-    <script src="js/mascot.js"></script>
-    <script src="js/bg-photo.js"></script>
-    <script src="js/celebrations.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/utils.js?v=27"></script>
+    <script src="js/storage.js?v=27"></script>
+    <script src="js/haptics.js?v=27"></script>
+    <script src="js/sound.js?v=27"></script>
+    <script src="js/reminders.js?v=27"></script>
+    <script src="js/achievements.js?v=27"></script>
+    <script src="js/mascot.js?v=27"></script>
+    <script src="js/bg-photo.js?v=27"></script>
+    <script src="js/celebrations.js?v=27"></script>
+    <script src="js/app.js?v=27"></script>
     <script>
       if ('serviceWorker' in navigator && location.protocol !== 'file:') {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js').catch(() => {});
+          navigator.serviceWorker
+            .register('sw.js')
+            .then((reg) => {
+              if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+              reg.update().catch(() => {});
+            })
+            .catch(() => {});
         });
       }
     </script>
