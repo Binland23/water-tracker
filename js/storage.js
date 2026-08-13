@@ -44,6 +44,7 @@
       lastPaceDay: '',
       entries: [],
       achievements: {},
+      achievementsSeen: {},
       mascotEnabled: true,
       dew: defaultDew(),
     };
@@ -176,6 +177,7 @@
       lastPaceDay: typeof data.lastPaceDay === 'string' ? data.lastPaceDay : '',
       entries: Array.isArray(data.entries) ? data.entries.map(normalizeEntry).filter(Boolean) : [],
       achievements: normalizeAchievements(data.achievements),
+      achievementsSeen: normalizeAchievements(data.achievementsSeen),
       mascotEnabled: data.mascotEnabled === false ? false : true,
       dew: normalizeDew(data.dew),
     };
@@ -548,9 +550,11 @@
     const incoming = data.version === 1 ? migrateFromV1(data) : normalize(data);
     if (!incoming) throw new Error('Could not read that backup.');
     const keepAchievements = { ...store.achievements, ...incoming.achievements };
+    const keepSeen = { ...store.achievementsSeen, ...incoming.achievementsSeen };
     const merged = normalize({
       ...incoming,
       achievements: keepAchievements,
+      achievementsSeen: keepSeen,
       onboarded: true,
     });
     Object.keys(store).forEach((k) => {

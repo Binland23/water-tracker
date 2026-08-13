@@ -1,5 +1,5 @@
 // Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = 'water-tracker-v25';
+const CACHE_VERSION = 'water-tracker-v26';
 
 const PRECACHE = [
   './',

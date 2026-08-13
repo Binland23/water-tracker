@@ -550,12 +550,44 @@
     return store.achievements;
   }
 
+  function ensureSeenMap(store) {
+    if (!store.achievementsSeen || typeof store.achievementsSeen !== 'object' || Array.isArray(store.achievementsSeen)) {
+      store.achievementsSeen = {};
+    }
+    return store.achievementsSeen;
+  }
+
   function isUnlocked(store, id) {
     return Boolean(ensureMap(store)[id]);
   }
 
   function unlockedCount(store) {
     return Object.keys(ensureMap(store)).length;
+  }
+
+  function unseenCount(store) {
+    const unlocked = ensureMap(store);
+    const seen = ensureSeenMap(store);
+    let n = 0;
+    for (const id of Object.keys(unlocked)) {
+      if (!seen[id]) n += 1;
+    }
+    return n;
+  }
+
+  /** Mark every currently unlocked achievement as seen. Returns true if anything changed. */
+  function markSeen(store) {
+    const unlocked = ensureMap(store);
+    const seen = ensureSeenMap(store);
+    const now = Date.now();
+    let changed = false;
+    for (const id of Object.keys(unlocked)) {
+      if (!seen[id]) {
+        seen[id] = now;
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   function totalCount() {
@@ -1029,8 +1061,11 @@
     CATALOG,
     totalCount,
     unlockedCount,
+    unseenCount,
+    markSeen,
     isUnlocked,
     ensureMap,
+    ensureSeenMap,
     normalizeMap,
     evaluate,
     listForUi,

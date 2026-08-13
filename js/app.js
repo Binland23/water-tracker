@@ -175,6 +175,7 @@
     }
     if (view === 'trophies') {
       processAchievements({ achievementsOpened: true });
+      markAchievementsSeen();
       renderAchievementsPage();
     }
     if (persist) {
@@ -269,8 +270,12 @@
           }
         }, 800);
       }
-      updateAchievementsBadge();
-      if (currentView === 'trophies') renderAchievementsPage();
+      if (currentView === 'trophies') {
+        markAchievementsSeen();
+        renderAchievementsPage();
+      } else {
+        updateAchievementsBadge();
+      }
     } else {
       updateAchievementsBadge();
     }
@@ -366,19 +371,33 @@
     }, 2700);
   }
 
+  function markAchievementsSeen() {
+    if (!achievements?.markSeen) return;
+    if (achievements.markSeen(store)) storage.saveAchievements(store);
+    updateAchievementsBadge();
+  }
+
   function updateAchievementsBadge() {
     const badge = $('#achievements-badge');
     if (!badge || !achievements) return;
+    const unseen = achievements.unseenCount ? achievements.unseenCount(store) : 0;
     const n = achievements.unlockedCount(store);
     const total = achievements.totalCount();
-    if (n > 0) {
+    if (unseen > 0) {
       badge.hidden = false;
-      badge.textContent = String(n);
+      badge.textContent = String(unseen);
     } else {
       badge.hidden = true;
     }
     const tab = document.querySelector('.tab-btn[data-nav="trophies"]');
-    if (tab) tab.setAttribute('aria-label', `Trophies, ${n} of ${total} unlocked`);
+    if (tab) {
+      tab.setAttribute(
+        'aria-label',
+        unseen > 0
+          ? `Trophies, ${unseen} new, ${n} of ${total} unlocked`
+          : `Trophies, ${n} of ${total} unlocked`
+      );
+    }
   }
 
   function renderAchievementsPage() {
