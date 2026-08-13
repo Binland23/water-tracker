@@ -1,5 +1,5 @@
 // Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = 'water-tracker-v24';
+const CACHE_VERSION = 'water-tracker-v25';
 
 const PRECACHE = [
   './',
@@ -62,14 +62,16 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        if (response.ok || response.type === 'opaque') {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
-        }
-        return response;
-      });
+      const fetched = fetch(request)
+        .then((response) => {
+          if (response.ok || response.type === 'opaque') {
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => cached);
+      return cached || fetched;
     })
   );
 });

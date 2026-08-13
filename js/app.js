@@ -687,17 +687,36 @@
       .join('');
   }
 
+  function getOwalaBottle() {
+    const bottles = store.bottles && store.bottles.length ? store.bottles : storage.defaultBottles();
+    return bottles.find((b) => b.id === 'owala') || storage.defaultBottles()[0];
+  }
+
+  function logBottle(bottle) {
+    if (!bottle) return;
+    addDrinkVolume({ ...bottle, hydration: 1 }, Math.round(ozToMl(bottle.oz)), { bottleId: bottle.id });
+  }
+
   function renderBottles() {
+    const bottles = store.bottles && store.bottles.length ? store.bottles : storage.defaultBottles();
+    const owala = getOwalaBottle();
+    const owalaBtn = $('#btn-owala');
+    if (owalaBtn && owala) {
+      const amt = formatAmountWithUnit(Math.round(ozToMl(owala.oz)), store.unit);
+      const amtEl = owalaBtn.querySelector('[data-drink-amount]');
+      if (amtEl) amtEl.textContent = `${amt} water`;
+      owalaBtn.setAttribute('aria-label', `Add full ${owala.label}, ${amt} water`);
+    }
+
     const row = $('#bottles-row');
     if (!row) return;
-    const bottles = store.bottles && store.bottles.length ? store.bottles : storage.defaultBottles();
-    row.innerHTML = bottles
+    const extras = bottles.filter((b) => b.id !== 'owala');
+    row.innerHTML = extras
       .map((b) => {
         const ml = Math.round(ozToMl(b.oz));
         const amt = formatAmountWithUnit(ml, store.unit);
-        const isOwala = b.id === 'owala';
         return `
-        <button type="button" class="bottle-btn${isOwala ? ' owala-btn' : ''}" data-bottle="${escapeHtml(b.id)}" aria-label="Add full ${escapeHtml(b.label)}, ${amt} water">
+        <button type="button" class="bottle-btn" data-bottle="${escapeHtml(b.id)}" aria-label="Add full ${escapeHtml(b.label)}, ${amt} water">
           <span class="owala-btn-mark" aria-hidden="true">
             <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
               <path d="M12 4h8l1 3v2c3 1 5 4 5 8v7a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4v-7c0-4 2-7 5-8V7l1-3z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
@@ -1385,12 +1404,14 @@
       btn.addEventListener('click', () => addWater(Number(btn.dataset.quick)));
     });
 
+    $('#btn-owala')?.addEventListener('click', () => logBottle(getOwalaBottle()));
+
     $('#bottles-row')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-bottle]');
       if (!btn) return;
       const bottle = (store.bottles || []).find((b) => b.id === btn.dataset.bottle);
       if (!bottle) return;
-      addDrinkVolume({ ...bottle, hydration: 1 }, Math.round(ozToMl(bottle.oz)), { bottleId: bottle.id });
+      logBottle(bottle);
     });
 
     $('#btn-electrolytes')?.addEventListener('click', () => openElectrolytesSheet());
