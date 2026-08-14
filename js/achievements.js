@@ -594,11 +594,12 @@
     return CATALOG.length;
   }
 
-  function goalDaysInWindow(totals, goal, endDate, span) {
+  function goalDaysInWindow(store, storage, totals, endDate, span) {
     let n = 0;
     const d = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
     for (let i = 0; i < span; i++) {
-      if ((totals.get(dayKey(d)) || 0) >= goal) n += 1;
+      const k = dayKey(d);
+      if (storage.dayMetGoal(store, k, totals.get(k) || 0)) n += 1;
       d.setDate(d.getDate() - 1);
     }
     return n;
@@ -667,7 +668,7 @@
     const y = new Date();
     y.setDate(y.getDate() - 1);
     const yesterdayKey = dayKey(y);
-    const yesterdayMet = (totals.get(yesterdayKey) || 0) >= goal;
+    const yesterdayMet = storage.dayMetGoal(store, yesterdayKey, totals.get(yesterdayKey) || 0);
     const todayMet = todayTotal >= goal && todayTotal > 0;
 
     // Weekend warrior: Sat+Sun of current or most recent weekend
@@ -681,7 +682,10 @@
       const sat = new Date(d);
       sat.setDate(sat.getDate() - 1);
       const satKey = dayKey(sat);
-      if ((totals.get(satKey) || 0) >= goal && (totals.get(sunKey) || 0) >= goal) {
+      if (
+        storage.dayMetGoal(store, satKey, totals.get(satKey) || 0) &&
+        storage.dayMetGoal(store, sunKey, totals.get(sunKey) || 0)
+      ) {
         weekendWarrior = true;
         break;
       }
@@ -693,18 +697,18 @@
       const d = new Date();
       d.setDate(d.getDate() - i);
       const k = dayKey(d);
-      if ((totals.get(k) || 0) < goal) {
+      if (!storage.dayMetGoal(store, k, totals.get(k) || 0)) {
         perfectWeek = false;
         break;
       }
     }
 
     // 5 of last 7 days — plus any historical 7-day window (silent backfill)
-    let weekFive = goalDaysInWindow(totals, goal, new Date(), 7) >= 5;
+    let weekFive = goalDaysInWindow(store, storage, totals, new Date(), 7) >= 5;
     if (!weekFive) {
       for (const k of totals.keys()) {
         const end = parseDayKey(k);
-        if (end && goalDaysInWindow(totals, goal, end, 7) >= 5) {
+        if (end && goalDaysInWindow(store, storage, totals, end, 7) >= 5) {
           weekFive = true;
           break;
         }
@@ -714,7 +718,7 @@
     // Any Monday met goal historically
     let mondayMet = false;
     for (const [k, total] of totals) {
-      if (total < goal) continue;
+      if (!storage.dayMetGoal(store, k, total)) continue;
       const d = parseDayKey(k);
       if (d.getDay() === 1) {
         mondayMet = true;
@@ -765,8 +769,9 @@
 
     // Best single-day pct
     let bestPct = goal > 0 ? todayTotal / goal : 0;
-    for (const t of totals.values()) {
-      const p = goal > 0 ? t / goal : 0;
+    for (const [k, t] of totals) {
+      const dayGoal = storage.goalForDay(store, k);
+      const p = dayGoal > 0 ? t / dayGoal : 0;
       if (p > bestPct) bestPct = p;
     }
 
@@ -783,7 +788,7 @@
         byDayEntries.get(k).push(e);
       }
       for (const [k, list] of byDayEntries) {
-        if ((totals.get(k) || 0) < goal) continue;
+        if (!storage.dayMetGoal(store, k, totals.get(k) || 0)) continue;
         if (list.length > 0 && list.every(isPureWaterEntry)) {
           pureDayEver = true;
           break;
@@ -801,7 +806,7 @@
         }
       }
       for (const k of elyDays) {
-        if ((totals.get(k) || 0) >= goal) {
+        if (storage.dayMetGoal(store, k, totals.get(k) || 0)) {
           elyGoalDay = true;
           break;
         }
@@ -882,7 +887,10 @@
 
     mark('first-sip', (store.entries || []).length >= 1);
     mark('half-full', stats.halfFull);
-    mark('goal-met', stats.todayMet || [...storage.totalsByDay(store).values()].some((t) => t >= stats.goal));
+    mark(
+      'goal-met',
+      stats.todayMet || [...storage.totalsByDay(store).keys()].some((k) => storage.dayMetGoal(store, k))
+    );
     mark('overachiever', stats.bestPct >= 1.1);
     mark('double-down', stats.bestPct >= 2);
     mark('gallon-club', stats.maxDayTotal >= GALLON_ML);

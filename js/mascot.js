@@ -428,14 +428,21 @@
       return { w: el.offsetWidth || 72, h: el.offsetHeight || 86 };
     }
 
+    function navHeight() {
+      const cs = getComputedStyle(document.documentElement);
+      const v = parseFloat(cs.getPropertyValue('--nav-h'));
+      return Number.isFinite(v) ? v : 50;
+    }
+
     function bounds() {
       const pad = safePad();
       const { w, h } = dewSize();
+      const floor = pad.bottom + navHeight() + 8;
       return {
         minX: pad.left,
         minY: pad.top + 6,
         maxX: Math.max(pad.left, window.innerWidth - w - pad.right),
-        maxY: Math.max(pad.top + 6, window.innerHeight - h - pad.bottom - 4),
+        maxY: Math.max(pad.top + 6, window.innerHeight - h - floor),
       };
     }
 

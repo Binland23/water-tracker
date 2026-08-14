@@ -32,6 +32,7 @@
       onboarded: false,
       name: '',
       goalMl: DEFAULT_GOAL_ML,
+      goalHistory: [],
       unit: 'oz',
       theme: 'system',
       wakeHour: 7,
@@ -164,6 +165,58 @@
     return d;
   }
 
+  function normalizeGoalHistory(raw) {
+    if (!Array.isArray(raw)) return [];
+    const rows = [];
+    for (const row of raw) {
+      if (!row || typeof row !== 'object') continue;
+      const from = String(row.from || '');
+      const goalMl = Math.round(Number(row.goalMl));
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) continue;
+      if (!Number.isFinite(goalMl) || goalMl < 100) continue;
+      rows.push({ from, goalMl });
+    }
+    rows.sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+    const out = [];
+    for (const row of rows) {
+      const last = out[out.length - 1];
+      if (last && last.from === row.from) {
+        last.goalMl = row.goalMl;
+        continue;
+      }
+      if (last && last.goalMl === row.goalMl) continue;
+      out.push(row);
+    }
+    return out;
+  }
+
+  function shiftDayKey(key, days) {
+    const parts = String(key || '').split('-').map(Number);
+    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return key;
+    const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+    dt.setDate(dt.getDate() + days);
+    return dayKey(dt);
+  }
+
+  /** Goal that applied on a given day. Past days keep the goal they were chasing. */
+  function goalForDay(store, key) {
+    const fallback = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
+    const hist = store.goalHistory || [];
+    if (!hist.length) return fallback;
+    let goal = hist[0].goalMl;
+    for (const row of hist) {
+      if (row.from <= key) goal = row.goalMl;
+      else break;
+    }
+    return goal;
+  }
+
+  function dayMetGoal(store, key, total) {
+    const amount = Number.isFinite(total) ? total : totalForDay(store, key);
+    const goal = goalForDay(store, key);
+    return amount > 0 && goal > 0 && amount >= goal;
+  }
+
   function normalizeAchievements(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
     return Object.fromEntries(
@@ -189,6 +242,7 @@
       onboarded: data.onboarded === true || (Array.isArray(data.entries) && data.entries.length > 0),
       name: typeof data.name === 'string' ? data.name.trim().slice(0, 24) : '',
       goalMl: Number(data.goalMl) > 0 ? Number(data.goalMl) : DEFAULT_GOAL_ML,
+      goalHistory: normalizeGoalHistory(data.goalHistory),
       unit: data.unit === 'ml' ? 'ml' : 'oz',
       theme,
       wakeHour: clamp(Math.round(Number(data.wakeHour) || 7), 0, 23),
@@ -347,7 +401,25 @@
   }
 
   function setGoal(store, goalMl) {
-    store.goalMl = Math.max(100, Math.round(goalMl));
+    const next = Math.max(100, Math.round(goalMl));
+    const prev = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
+    if (next !== prev) {
+      const today = dayKey();
+      const hist = normalizeGoalHistory(store.goalHistory);
+      if (!hist.length) {
+        const keys = [...totalsByDay(store).keys()].sort();
+        const first = keys[0] && keys[0] < today ? keys[0] : today;
+        hist.push({ from: first, goalMl: prev });
+      }
+      const todayTotal = totalForDay(store, today);
+      const keepToday = todayTotal > 0 && todayTotal >= prev;
+      const from = keepToday ? shiftDayKey(today, 1) : today;
+      const last = hist[hist.length - 1];
+      if (last && last.from === from) last.goalMl = next;
+      else if (!last || last.goalMl !== next) hist.push({ from, goalMl: next });
+      store.goalHistory = normalizeGoalHistory(hist);
+    }
+    store.goalMl = next;
     save(store);
   }
 
@@ -534,16 +606,14 @@
   }
 
   function daysMet(store, days = 7) {
-    const goal = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
-    return weekTotals(store, days).filter((d) => d.total >= goal && d.total > 0).length;
+    return weekTotals(store, days).filter((d) => dayMetGoal(store, d.key, d.total)).length;
   }
 
   function currentStreak(store, opts = {}) {
-    const goal = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
     const fromKey = opts.fromKey || dayKey();
     const totals = totalsByDay(store);
     const requireToday = !!opts.requireToday;
-    const met = (key) => (totals.get(key) || 0) >= goal && (totals.get(key) || 0) > 0;
+    const met = (key) => dayMetGoal(store, key, totals.get(key) || 0);
 
     const start = fromKey.split('-').map(Number);
     const cursor = new Date(start[0], start[1] - 1, start[2]);
@@ -562,9 +632,8 @@
   }
 
   function longestStreak(store) {
-    const goal = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
     const totals = totalsByDay(store);
-    const keys = [...totals.keys()].filter((k) => (totals.get(k) || 0) >= goal).sort();
+    const keys = [...totals.keys()].filter((k) => dayMetGoal(store, k, totals.get(k) || 0)).sort();
     if (!keys.length) return 0;
     let best = 1;
     let run = 1;
@@ -617,7 +686,7 @@
     const goal = store.goalMl;
     const week = weekTotals(store, 7);
     const weekMl = week.reduce((s, d) => s + d.total, 0);
-    const met = week.filter((d) => d.total >= goal && d.total > 0).length;
+    const met = week.filter((d) => dayMetGoal(store, d.key, d.total)).length;
     const best = week.reduce((a, d) => (d.total > a.total ? d : a), week[0] || { total: 0 });
     const life = lifetimeMl(store);
     return {
@@ -678,6 +747,8 @@
     daysMet,
     currentStreak,
     longestStreak,
+    goalForDay,
+    dayMetGoal,
     insights,
     exportJson,
     importJson,

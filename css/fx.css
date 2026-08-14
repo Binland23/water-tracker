@@ -193,6 +193,12 @@ body.electrolytes-charged {
   bottom: auto;
 }
 
+.mascot.is-free,
+.mascot.is-dragging,
+.mascot.is-fling {
+  z-index: 46;
+}
+
 .mascot.is-dragging,
 .mascot.is-fling {
   transition: none;

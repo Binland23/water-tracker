@@ -131,19 +131,121 @@
 
   function closeSheets() {
     $$('.sheet').forEach((s) => {
-      s.classList.remove('is-open');
+      s.classList.remove('is-open', 'is-dragging');
+      s.style.transform = '';
       setTimeout(() => {
         if (!s.classList.contains('is-open')) s.hidden = true;
       }, 280);
     });
     const backdrop = $('#sheet-backdrop');
     backdrop.classList.remove('is-open');
+    backdrop.style.opacity = '';
     setTimeout(() => {
       if (!backdrop.classList.contains('is-open')) backdrop.hidden = true;
     }, 280);
     document.body.classList.remove('sheet-open');
     activeDrinkId = null;
     editingId = null;
+  }
+
+  function bindSheetDismiss() {
+    const backdrop = $('#sheet-backdrop');
+    const DISMISS_PX = 96;
+    const DISMISS_VEL = 0.85;
+    const IGNORE = 'input, select, textarea, button, label, [contenteditable="true"]';
+
+    $$('.sheet').forEach((sheet) => {
+      let startY = 0;
+      let startX = 0;
+      let lastY = 0;
+      let lastT = 0;
+      let vy = 0;
+      let tracking = false;
+      let dragging = false;
+      let pointerId = null;
+
+      const resetVisual = () => {
+        sheet.classList.remove('is-dragging');
+        sheet.style.transform = '';
+        if (backdrop) backdrop.style.opacity = '';
+      };
+
+      const canStart = (e) => {
+        if (!sheet.classList.contains('is-open')) return false;
+        if (e.button != null && e.button !== 0) return false;
+        const t = e.target;
+        if (t.closest(IGNORE)) return false;
+        if (t.closest('.sheet-handle, .sheet-header')) return true;
+        return sheet.scrollTop <= 0;
+      };
+
+      sheet.addEventListener('pointerdown', (e) => {
+        if (!canStart(e)) return;
+        tracking = true;
+        dragging = false;
+        pointerId = e.pointerId;
+        startY = e.clientY;
+        startX = e.clientX;
+        lastY = e.clientY;
+        lastT = performance.now();
+        vy = 0;
+      });
+
+      sheet.addEventListener('pointermove', (e) => {
+        if (!tracking || e.pointerId !== pointerId) return;
+        const now = performance.now();
+        const dy = e.clientY - startY;
+        const dx = e.clientX - startX;
+        vy = (e.clientY - lastY) / Math.max(8, now - lastT);
+        lastY = e.clientY;
+        lastT = now;
+
+        if (!dragging) {
+          if (dy < 10) {
+            if (Math.abs(dx) > 14 || dy < -12) tracking = false;
+            return;
+          }
+          if (Math.abs(dx) > dy) {
+            tracking = false;
+            return;
+          }
+          dragging = true;
+          sheet.classList.add('is-dragging');
+          try {
+            sheet.setPointerCapture(pointerId);
+          } catch {
+            /* ignore */
+          }
+        }
+
+        const y = Math.max(0, dy);
+        sheet.style.transform = `translate(-50%, ${y}px)`;
+        if (backdrop) {
+          const fade = Math.max(0.12, 1 - y / Math.max(280, sheet.offsetHeight * 0.7));
+          backdrop.style.opacity = String(fade);
+        }
+        if (sheet.scrollTop > 0) sheet.scrollTop = 0;
+      });
+
+      const end = (e) => {
+        if (!tracking || (e.pointerId != null && e.pointerId !== pointerId)) return;
+        const dragged = dragging;
+        const dy = Math.max(0, (e.clientY != null ? e.clientY : lastY) - startY);
+        tracking = false;
+        dragging = false;
+        pointerId = null;
+        if (!dragged) return;
+        if (dy > DISMISS_PX || (vy > DISMISS_VEL && dy > 36)) {
+          haptic('light');
+          closeSheets();
+          return;
+        }
+        resetVisual();
+      };
+
+      sheet.addEventListener('pointerup', end);
+      sheet.addEventListener('pointercancel', end);
+    });
   }
 
   function setView(name, { persist = true } = {}) {
@@ -674,7 +776,7 @@
     for (const day of week) {
       const h = (day.total / maxBar) * 100;
       const isToday = day.key === today;
-      const done = day.total >= goal && day.total > 0;
+      const done = storage.dayMetGoal(store, day.key, day.total);
       const col = document.createElement('button');
       col.type = 'button';
       col.className = 'week-col' + (isToday ? ' is-today' : '') + (done ? ' is-done' : '');
@@ -809,7 +911,6 @@
     const label = $('#cal-month-label');
     if (!grid || !label) return;
     const { year, month, selectedKey } = calState;
-    const goal = store.goalMl;
     const today = dayKey();
     const { cells } = storage.monthTotals(store, year, month);
     label.textContent = formatMonthYear(new Date(year, month, 1));
@@ -830,7 +931,8 @@
       }
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = `cal-cell ${dayFillClass(cell.total, goal)}`;
+      const dayGoal = storage.goalForDay(store, cell.key);
+      btn.className = `cal-cell ${dayFillClass(cell.total, dayGoal)}`;
       if (cell.key === today) btn.classList.add('is-today');
       if (cell.key === selectedKey) btn.classList.add('is-selected');
       if (cell.key > today) {
@@ -838,7 +940,7 @@
         btn.disabled = true;
       }
       btn.dataset.dayKey = cell.key;
-      const pct = goal > 0 ? Math.min(100, Math.round((cell.total / goal) * 100)) : 0;
+      const pct = dayGoal > 0 ? Math.min(100, Math.round((cell.total / dayGoal) * 100)) : 0;
       btn.setAttribute(
         'aria-label',
         `${formatDayLabel(cell.date)}: ${formatAmountWithUnit(cell.total, store.unit)}${cell.total > 0 ? ` (${pct}% of goal)` : ''}`
@@ -857,7 +959,7 @@
     const date = parseDayKey(selected);
     const entries = storage.entriesForDay(store, selected);
     const total = storage.totalForDay(store, selected);
-    const goal = store.goalMl;
+    const goal = storage.goalForDay(store, selected);
     const unit = store.unit;
     const pct = goal > 0 ? Math.round((total / goal) * 100) : 0;
     $('#cal-day-title').textContent = formatDayLabel(date);
@@ -1625,6 +1727,7 @@
 
     $('#sheet-backdrop')?.addEventListener('click', closeSheets);
     $$('[data-close-sheet]').forEach((b) => b.addEventListener('click', closeSheets));
+    bindSheetDismiss();
 
     $('#undo-btn')?.addEventListener('click', () => {
       if (!undoState?.entry) return;
