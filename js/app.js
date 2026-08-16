@@ -248,6 +248,41 @@
     });
   }
 
+  function prefersReducedMotion() {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function updateTabIndicator({ animate = true } = {}) {
+    const glass = $('.tab-nav-glass');
+    const indicator = $('.tab-indicator');
+    const active = $('.tab-btn.is-active');
+    if (!glass || !indicator || !active) return;
+
+    const insetX = 3;
+    const left = active.offsetLeft + insetX;
+    const width = Math.max(0, active.offsetWidth - insetX * 2);
+    const shouldAnimate = animate && indicator.classList.contains('is-ready') && !prefersReducedMotion();
+
+    if (!shouldAnimate) indicator.classList.add('is-snapping');
+    else indicator.classList.remove('is-snapping');
+
+    indicator.style.width = `${width}px`;
+    indicator.style.transform = `translate3d(${left}px, 0, 0)`;
+
+    if (!indicator.classList.contains('is-ready')) {
+      // Place first without a fade-from-zero slide.
+      void indicator.offsetWidth;
+      indicator.classList.add('is-ready');
+      indicator.classList.remove('is-snapping');
+      return;
+    }
+
+    if (!shouldAnimate) {
+      void indicator.offsetWidth;
+      indicator.classList.remove('is-snapping');
+    }
+  }
+
   function setView(name, { persist = true } = {}) {
     const allowed = ['today', 'insights', 'calendar', 'trophies'];
     const view = allowed.includes(name) ? name : 'today';
@@ -259,6 +294,7 @@
     $$('.tab-btn').forEach((btn) => {
       btn.classList.toggle('is-active', btn.dataset.nav === view);
     });
+    updateTabIndicator();
     const titles = {
       today: 'Today',
       insights: 'Insights',
@@ -1489,6 +1525,7 @@
     storage.setOnboarded(store, { name, unit, goalMl });
     $('#onboard').hidden = true;
     document.body.classList.remove('is-onboarding');
+    updateTabIndicator({ animate: false });
     haptic('success');
     render();
     processAchievements({ onboarded: true });
@@ -1911,6 +1948,7 @@
       updateRotateLock();
     });
     window.addEventListener('resize', updateRotateLock);
+    window.addEventListener('resize', () => updateTabIndicator({ animate: false }));
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         lockPortraitOrientation();
@@ -1934,6 +1972,8 @@
     }
     applyTheme(store.theme);
     bind();
+    updateTabIndicator({ animate: false });
+    requestAnimationFrame(() => updateTabIndicator({ animate: false }));
     lastGoalReached = storage.totalForDay(store) >= store.goalMl && store.goalMl > 0;
     if (bgPhoto) {
       try {

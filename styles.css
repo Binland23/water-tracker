@@ -1425,6 +1425,36 @@ body.is-onboarding .mascot {
   bottom: auto !important;
 }
 
+.tab-indicator {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  z-index: 1;
+  width: 0;
+  height: calc(100% - 12px);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 0 14px color-mix(in srgb, var(--accent) 18%, transparent);
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  opacity: 0;
+  transition:
+    transform 0.42s var(--ease-spring),
+    width 0.42s var(--ease-out),
+    opacity 0.22s var(--ease-out);
+  will-change: transform, width;
+}
+
+.tab-indicator.is-ready {
+  opacity: 1;
+}
+
+.tab-indicator.is-snapping {
+  transition: none;
+}
+
 .tab-btn {
   position: relative;
   z-index: 1;
@@ -1466,23 +1496,6 @@ body.is-onboarding .mascot {
   border-radius: 16px;
 }
 
-.tab-btn::before {
-  content: "";
-  position: absolute;
-  inset: 2px 3px;
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.08));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    0 0 14px color-mix(in srgb, var(--accent) 18%, transparent);
-  opacity: 0;
-  transform: scale(0.88);
-  transition:
-    opacity 0.28s var(--ease-out),
-    transform 0.32s var(--ease-spring);
-  pointer-events: none;
-}
-
 .tab-btn-inner {
   display: flex;
   flex-direction: column;
@@ -1501,6 +1514,7 @@ body.is-onboarding .mascot {
 .tab-btn svg {
   display: block;
   flex-shrink: 0;
+  transition: filter 0.22s var(--ease-out);
 }
 
 .tab-btn-label {
@@ -1511,11 +1525,6 @@ body.is-onboarding .mascot {
 
 .tab-btn.is-active {
   color: var(--accent-strong);
-}
-
-.tab-btn.is-active::before {
-  opacity: 1;
-  transform: scale(1);
 }
 
 .tab-btn.is-active svg {
@@ -2082,7 +2091,8 @@ code {
   .undo-bar,
   .tab-btn,
   .tab-btn-inner,
-  .tab-btn::before {
+  .tab-btn svg,
+  .tab-indicator {
     transition: none;
   }
 
