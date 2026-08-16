@@ -18,5 +18,8 @@ python3 -m http.server 8080
 ### Lint / test / build
 There is **no lint config, no automated test suite, and no build/bundle step** in this repo. "Build and run" == serve the static files. Do not add or expect `npm`/CI tooling unless a task explicitly introduces it.
 
+### Do not do browser verification unless instructed
+Do **not** open a browser, drive the UI, take screenshots, or record a video walkthrough unless the user **explicitly** asks for browser verification, a UI demo, or computer-use testing. Default to serving the app and verifying with HTTP requests, file/code inspection, and (when present) automated tests. Skip computer-use / GUI agents unless instructed.
+
 ### Service worker gotcha
 `sw.js` caches assets under a `CACHE_VERSION`. When changing JS/CSS/HTML, bump `CACHE_VERSION` in `sw.js` so a previously-loaded page picks up changes; otherwise a stale cached copy may be served. During local testing, a hard reload / disabling the SW cache avoids confusion.
