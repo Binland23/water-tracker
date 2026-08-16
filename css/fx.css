@@ -180,7 +180,7 @@ body.electrolytes-charged {
   --look-y: 0px;
   position: fixed;
   right: max(12px, var(--safe-right));
-  bottom: calc(var(--nav-h) + var(--safe-bottom) + 8px);
+  bottom: calc(var(--nav-h) + var(--nav-float, 0px) + var(--safe-bottom) + 8px);
   z-index: 35;
   width: 72px;
   height: 86px;
@@ -772,6 +772,19 @@ body.has-photo-bg .toast,
 body.has-photo-bg .undo-bar {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+body.has-photo-bg .tab-nav::before {
+  background: linear-gradient(
+    to top,
+    rgba(6, 18, 26, 0.58) 0%,
+    rgba(6, 18, 26, 0.2) 52%,
+    transparent 100%
+  );
+}
+
+body.has-photo-bg .tab-nav-material {
+  background: color-mix(in srgb, var(--bg-elevated) 26%, rgba(255, 255, 255, 0.08));
 }
 
 .bg-photo-block {

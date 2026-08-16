@@ -430,8 +430,9 @@
 
     function navHeight() {
       const cs = getComputedStyle(document.documentElement);
-      const v = parseFloat(cs.getPropertyValue('--nav-h'));
-      return Number.isFinite(v) ? v : 50;
+      const h = parseFloat(cs.getPropertyValue('--nav-h'));
+      const float = parseFloat(cs.getPropertyValue('--nav-float'));
+      return (Number.isFinite(h) ? h : 56) + (Number.isFinite(float) ? float : 0);
     }
 
     function bounds() {
