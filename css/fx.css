@@ -784,7 +784,7 @@ body.has-photo-bg .tab-nav::before {
 }
 
 body.has-photo-bg .tab-nav-material {
-  background: color-mix(in srgb, var(--bg-elevated) 26%, rgba(255, 255, 255, 0.08));
+  background: rgba(236, 250, 255, 0.1);
 }
 
 .bg-photo-block {
