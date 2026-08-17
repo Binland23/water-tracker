@@ -777,14 +777,15 @@ body.has-photo-bg .undo-bar {
 body.has-photo-bg .tab-nav::before {
   background: linear-gradient(
     to top,
-    rgba(6, 18, 26, 0.58) 0%,
-    rgba(6, 18, 26, 0.2) 52%,
+    rgba(6, 18, 26, 0.82) 0%,
+    rgba(6, 18, 26, 0.42) 48%,
+    rgba(6, 18, 26, 0.12) 72%,
     transparent 100%
   );
 }
 
 body.has-photo-bg .tab-nav-material {
-  background: rgba(236, 250, 255, 0.1);
+  background: color-mix(in srgb, rgba(8, 24, 34, 0.72) 70%, rgba(200, 236, 248, 0.16));
 }
 
 .bg-photo-block {
