@@ -30,11 +30,11 @@
   --nav-h: 56px;
   --nav-float: 10px;
   --nav-gutter: 16px;
-  --glass-tint: rgba(236, 250, 255, 0.14);
+  --glass-tint: color-mix(in srgb, var(--bg-elevated) 78%, rgba(170, 220, 235, 0.22));
   --glass-shadow:
     0 12px 36px rgba(0, 0, 0, 0.36),
     0 2px 8px rgba(0, 0, 0, 0.2);
-  --glass-rim: rgba(255, 255, 255, 0.58);
+  --glass-rim: rgba(190, 230, 240, 0.42);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
@@ -1254,8 +1254,9 @@ legend.field-label {
   height: calc(var(--nav-h) + var(--nav-float) + var(--safe-bottom) + 28px);
   background: linear-gradient(
     to top,
-    color-mix(in srgb, var(--bg) 72%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 28%, transparent) 48%,
+    color-mix(in srgb, var(--bg) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 48%, transparent) 42%,
+    color-mix(in srgb, var(--bg) 12%, transparent) 72%,
     transparent 100%
   );
   pointer-events: none;
@@ -1292,8 +1293,8 @@ legend.field-label {
   border-radius: inherit;
   overflow: hidden;
   background: var(--glass-tint);
-  backdrop-filter: blur(32px) saturate(1.9) brightness(1.12);
-  -webkit-backdrop-filter: blur(32px) saturate(1.9) brightness(1.12);
+  backdrop-filter: blur(28px) saturate(1.35) brightness(0.92);
+  -webkit-backdrop-filter: blur(28px) saturate(1.35) brightness(0.92);
   pointer-events: none;
   z-index: 0;
 }
@@ -1304,11 +1305,11 @@ legend.field-label {
   inset: 0;
   border-radius: inherit;
   background:
-    radial-gradient(120% 90% at 18% -30%, rgba(255, 255, 255, 0.42), transparent 46%),
-    radial-gradient(90% 70% at 88% 120%, rgba(126, 224, 255, 0.2), transparent 52%),
-    radial-gradient(70% 50% at 50% 0%, rgba(255, 255, 255, 0.18), transparent 60%);
-  mix-blend-mode: overlay;
-  opacity: 0.85;
+    radial-gradient(120% 90% at 18% -30%, rgba(255, 255, 255, 0.18), transparent 46%),
+    radial-gradient(90% 70% at 88% 120%, rgba(126, 224, 255, 0.12), transparent 52%),
+    radial-gradient(70% 50% at 50% 0%, rgba(255, 255, 255, 0.1), transparent 60%);
+  mix-blend-mode: soft-light;
+  opacity: 0.55;
   animation: tab-glass-caustic 11s ease-in-out infinite;
 }
 
@@ -1320,14 +1321,14 @@ legend.field-label {
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.38) 0%,
-      rgba(255, 255, 255, 0.08) 28%,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.04) 28%,
       transparent 52%
     ),
-    radial-gradient(120% 40% at 50% -10%, rgba(255, 255, 255, 0.45), transparent 55%);
+    radial-gradient(120% 40% at 50% -10%, rgba(255, 255, 255, 0.18), transparent 55%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -12px 20px rgba(0, 0, 0, 0.16);
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.28);
   pointer-events: none;
 }
 
@@ -1361,11 +1362,9 @@ legend.field-label {
   0%,
   100% {
     transform: translate3d(-3%, 0, 0) scale(1);
-    opacity: 0.72;
   }
   50% {
     transform: translate3d(5%, -4%, 0) scale(1.08);
-    opacity: 1;
   }
 }
 
@@ -1388,26 +1387,61 @@ legend.field-label {
   }
 }
 
+html[data-theme="light"] .tab-nav-material {
+  backdrop-filter: blur(32px) saturate(1.9) brightness(1.12);
+  -webkit-backdrop-filter: blur(32px) saturate(1.9) brightness(1.12);
+}
+
 html[data-theme="light"] .tab-nav-material::before {
+  background:
+    radial-gradient(120% 90% at 18% -30%, rgba(255, 255, 255, 0.42), transparent 46%),
+    radial-gradient(90% 70% at 88% 120%, rgba(126, 224, 255, 0.2), transparent 52%),
+    radial-gradient(70% 50% at 50% 0%, rgba(255, 255, 255, 0.18), transparent 60%);
   mix-blend-mode: soft-light;
   opacity: 0.95;
 }
 
 html[data-theme="light"] .tab-nav-material::after {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0.08) 28%,
+      transparent 52%
+    ),
+    radial-gradient(120% 40% at 50% -10%, rgba(255, 255, 255, 0.45), transparent 55%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.92),
     inset 0 -8px 16px rgba(15, 50, 70, 0.06);
 }
 
 @media (prefers-color-scheme: light) {
+  html[data-theme="system"] .tab-nav-material,
+  html:not([data-theme]) .tab-nav-material {
+    backdrop-filter: blur(32px) saturate(1.9) brightness(1.12);
+    -webkit-backdrop-filter: blur(32px) saturate(1.9) brightness(1.12);
+  }
+
   html[data-theme="system"] .tab-nav-material::before,
   html:not([data-theme]) .tab-nav-material::before {
+    background:
+      radial-gradient(120% 90% at 18% -30%, rgba(255, 255, 255, 0.42), transparent 46%),
+      radial-gradient(90% 70% at 88% 120%, rgba(126, 224, 255, 0.2), transparent 52%),
+      radial-gradient(70% 50% at 50% 0%, rgba(255, 255, 255, 0.18), transparent 60%);
     mix-blend-mode: soft-light;
     opacity: 0.95;
   }
 
   html[data-theme="system"] .tab-nav-material::after,
   html:not([data-theme]) .tab-nav-material::after {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.38) 0%,
+        rgba(255, 255, 255, 0.08) 28%,
+        transparent 52%
+      ),
+      radial-gradient(120% 40% at 50% -10%, rgba(255, 255, 255, 0.45), transparent 55%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.92),
       inset 0 -8px 16px rgba(15, 50, 70, 0.06);
@@ -1433,10 +1467,10 @@ body.is-onboarding .mascot {
   width: 0;
   height: calc(100% - 12px);
   border-radius: 20px;
-  background: color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.06));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    0 0 14px color-mix(in srgb, var(--accent) 18%, transparent);
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 0 14px color-mix(in srgb, var(--accent) 22%, transparent);
   pointer-events: none;
   transform: translate3d(0, 0, 0);
   opacity: 0;
@@ -1469,7 +1503,7 @@ body.is-onboarding .mascot {
   border: 0;
   border-radius: 22px;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.68rem;
   font-weight: 600;
   appearance: none;
