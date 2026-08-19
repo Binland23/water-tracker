@@ -1171,6 +1171,13 @@ legend.field-label {
   color: var(--text-muted);
 }
 
+.ach-reset-btn {
+  width: auto;
+  margin-top: 12px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+}
+
 .achievements-list {
   display: flex;
   flex-direction: column;

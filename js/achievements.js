@@ -857,6 +857,25 @@
   }
 
   /**
+   * After a trophies reset, browsing/init should not immediately re-grant
+   * every badge the log still qualifies for. A real action (log, settings
+   * change, mascot play, import, …) clears the hold and evaluates again.
+   */
+  function isPassiveEvaluate(ctx) {
+    if (!ctx || typeof ctx !== 'object') return false;
+    const active = Object.keys(ctx).filter((k) => ctx[k]);
+    if (active.length === 0) return false;
+    return active.every(
+      (k) =>
+        k === 'silent' ||
+        k === 'photoSet' ||
+        k === 'achievementsOpened' ||
+        k === 'insightsOpened' ||
+        k === 'calendarOpened'
+    );
+  }
+
+  /**
    * Evaluate which achievements should unlock given current store + optional context flags.
    * Mutates store.achievements and returns newly unlocked ids.
    * @param {object} store
@@ -881,6 +900,11 @@
    * @returns {string[]} newly unlocked ids
    */
   function evaluate(store, storage, ctx = {}) {
+    if (store.achievementsResetPending && isPassiveEvaluate(ctx)) {
+      return [];
+    }
+    if (store.achievementsResetPending) store.achievementsResetPending = false;
+
     const map = ensureMap(store);
     const stats = buildStats(store, storage);
     const want = new Set();
@@ -1084,6 +1108,7 @@
     ensureSeenMap,
     normalizeMap,
     evaluate,
+    isPassiveEvaluate,
     listForUi,
     defById,
   };
