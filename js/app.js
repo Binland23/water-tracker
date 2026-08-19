@@ -401,12 +401,18 @@
 
   function processAchievements(ctx = {}) {
     if (!achievements?.evaluate) return [];
+    const pending = store.achievementsResetPending === true;
     const newly = achievements.evaluate(store, storage, ctx);
-    if (newly.length) {
+    if (newly.length || pending !== (store.achievementsResetPending === true)) {
       storage.saveAchievements(store);
-      if (!ctx.silent) {
-        for (const id of newly) achievementToastQueue.push(id);
-        drainAchievementToasts();
+      if (!ctx.silent && newly.length) {
+        if (newly.length <= 2) {
+          for (const id of newly) achievementToastQueue.push(id);
+          drainAchievementToasts();
+        } else {
+          haptic('success');
+          showToast(`${newly.length} trophies unlocked`, { duration: 2600 });
+        }
         setTimeout(() => {
           if (!document.body.classList.contains('sheet-open')) {
             speakMascot({ event: 'achievement' });
@@ -513,6 +519,21 @@
       achievementToastBusy = false;
       drainAchievementToasts();
     }, 2700);
+  }
+
+  function resetTrophies() {
+    if (!confirm('Reset all trophies? You can earn them again. Your drinks stay.')) return;
+    if (storage.resetAchievements) storage.resetAchievements(store);
+    else {
+      store.achievements = {};
+      store.achievementsSeen = {};
+      store.achievementsResetPending = true;
+    }
+    highlightedAchievementIds.clear();
+    haptic('warning');
+    updateAchievementsBadge();
+    if (currentView === 'trophies') renderAchievementsPage();
+    showToast('Trophies reset — log a drink to earn them again');
   }
 
   function rememberUnseenAchievements(ids = []) {
@@ -1962,6 +1983,8 @@
       render();
       showToast('All data cleared');
     });
+    $('#btn-reset-trophies')?.addEventListener('click', resetTrophies);
+    $('#btn-reset-trophies-settings')?.addEventListener('click', resetTrophies);
 
     $('#onboard-next')?.addEventListener('click', () => {
       if (onboardStep < 3) {
