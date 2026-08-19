@@ -47,6 +47,7 @@
       achievements: {},
       achievementsSeen: {},
       achievementsSeenMigrated: true,
+      achievementsResetPending: false,
       mascotEnabled: true,
       dew: defaultDew(),
     };
@@ -259,6 +260,7 @@
       achievements,
       achievementsSeen,
       achievementsSeenMigrated: true,
+      achievementsResetPending: data.achievementsResetPending === true,
       mascotEnabled: data.mascotEnabled === false ? false : true,
       dew: normalizeDew(data.dew),
     };
@@ -397,6 +399,14 @@
     if (!store.achievements || typeof store.achievements !== 'object') {
       store.achievements = {};
     }
+    save(store);
+  }
+
+  function resetAchievements(store) {
+    store.achievements = {};
+    store.achievementsSeen = {};
+    store.achievementsSeenMigrated = true;
+    store.achievementsResetPending = true;
     save(store);
   }
 
@@ -753,6 +763,7 @@
     exportJson,
     importJson,
     saveAchievements,
+    resetAchievements,
     defaultBottles,
     isOwalaBottle,
   };
