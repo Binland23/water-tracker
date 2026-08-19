@@ -565,14 +565,18 @@
     return Object.keys(ensureMap(store)).length;
   }
 
-  function unseenCount(store) {
+  function unseenIds(store) {
     const unlocked = ensureMap(store);
     const seen = ensureSeenMap(store);
-    let n = 0;
+    const ids = [];
     for (const id of Object.keys(unlocked)) {
-      if (!seen[id]) n += 1;
+      if (!seen[id]) ids.push(id);
     }
-    return n;
+    return ids;
+  }
+
+  function unseenCount(store) {
+    return unseenIds(store).length;
   }
 
   /** Mark every currently unlocked achievement as seen. Returns true if anything changed. */
@@ -1041,14 +1045,17 @@
    */
   function listForUi(store) {
     const map = ensureMap(store);
+    const seen = ensureSeenMap(store);
     const groups = [];
     const byCat = new Map();
     for (const a of CATALOG) {
+      const unlocked = Boolean(map[a.id]);
       if (!byCat.has(a.category)) byCat.set(a.category, []);
       byCat.get(a.category).push({
         ...a,
-        unlocked: Boolean(map[a.id]),
+        unlocked,
         unlockedAt: map[a.id] || null,
+        unseen: unlocked && !seen[a.id],
       });
     }
     for (const cat of UI_CATEGORY_ORDER) {
@@ -1070,6 +1077,7 @@
     totalCount,
     unlockedCount,
     unseenCount,
+    unseenIds,
     markSeen,
     isUnlocked,
     ensureMap,

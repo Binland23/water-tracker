@@ -1206,6 +1206,19 @@ legend.field-label {
   opacity: 0.55;
 }
 
+.ach-group-new .ach-group-title {
+  color: var(--warning);
+}
+
+.ach-card.is-new {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--accent));
+  background: color-mix(in srgb, var(--warning) 16%, var(--surface));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--warning) 30%, transparent),
+    0 10px 24px color-mix(in srgb, var(--warning) 16%, transparent);
+  animation: ach-new-pulse 1.8s var(--ease-out) 2;
+}
+
 .ach-card-icon {
   font-size: 1.4rem;
 }
@@ -1213,6 +1226,24 @@ legend.field-label {
 .ach-card-title {
   margin: 0;
   font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ach-card-new {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--warning);
+  color: #1a1408;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.4;
 }
 
 .ach-card-desc,
@@ -1220,6 +1251,20 @@ legend.field-label {
   margin: 2px 0 0;
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+@keyframes ach-new-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--warning) 30%, transparent),
+      0 10px 24px color-mix(in srgb, var(--warning) 16%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--warning) 42%, transparent),
+      0 12px 28px color-mix(in srgb, var(--warning) 24%, transparent);
+  }
 }
 
 /* —— Tab bar (Liquid Glass) —— */
@@ -2135,5 +2180,9 @@ code {
   }
   button:active {
     transform: none;
+  }
+
+  .ach-card.is-new {
+    animation: none;
   }
 }
