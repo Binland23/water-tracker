@@ -48,6 +48,7 @@
       achievementsSeen: {},
       achievementsSeenMigrated: true,
       achievementsResetPending: false,
+      achievementsHeld: {},
       mascotEnabled: true,
       dew: defaultDew(),
     };
@@ -218,6 +219,15 @@
     return amount > 0 && goal > 0 && amount >= goal;
   }
 
+  function normalizeHeld(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [id, v] of Object.entries(raw)) {
+      if (typeof id === 'string' && id && v) out[id] = true;
+    }
+    return out;
+  }
+
   function normalizeAchievements(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
     return Object.fromEntries(
@@ -232,6 +242,8 @@
     const bottles = normalizeBottles(data.bottles);
     const achievements = normalizeAchievements(data.achievements);
     let achievementsSeen = normalizeAchievements(data.achievementsSeen);
+    const achievementsHeld = normalizeHeld(data.achievementsHeld);
+    for (const id of Object.keys(achievements)) delete achievementsHeld[id];
     // First launch of unseen-tracking: existing unlocks are not "new".
     // Without this, the trophies badge shows the lifetime total (e.g. 31).
     const seenMigrated = data.achievementsSeenMigrated === true;
@@ -261,6 +273,7 @@
       achievementsSeen,
       achievementsSeenMigrated: true,
       achievementsResetPending: data.achievementsResetPending === true,
+      achievementsHeld,
       mascotEnabled: data.mascotEnabled === false ? false : true,
       dew: normalizeDew(data.dew),
     };
@@ -405,9 +418,26 @@
   function resetAchievements(store) {
     store.achievements = {};
     store.achievementsSeen = {};
+    store.achievementsHeld = {};
     store.achievementsSeenMigrated = true;
     store.achievementsResetPending = true;
     save(store);
+  }
+
+  function resetAchievement(store, id) {
+    if (typeof id !== 'string' || !id) return false;
+    if (!store.achievements || typeof store.achievements !== 'object') store.achievements = {};
+    if (!store.achievements[id]) return false;
+    delete store.achievements[id];
+    if (store.achievementsSeen && typeof store.achievementsSeen === 'object' && !Array.isArray(store.achievementsSeen)) {
+      delete store.achievementsSeen[id];
+    }
+    if (!store.achievementsHeld || typeof store.achievementsHeld !== 'object' || Array.isArray(store.achievementsHeld)) {
+      store.achievementsHeld = {};
+    }
+    store.achievementsHeld[id] = true;
+    save(store);
+    return true;
   }
 
   function setGoal(store, goalMl) {
@@ -675,10 +705,13 @@
     if (!incoming) throw new Error('Could not read that backup.');
     const keepAchievements = { ...store.achievements, ...incoming.achievements };
     const keepSeen = { ...store.achievementsSeen, ...incoming.achievementsSeen };
+    const keepHeld = { ...store.achievementsHeld, ...incoming.achievementsHeld };
+    for (const id of Object.keys(keepAchievements)) delete keepHeld[id];
     const merged = normalize({
       ...incoming,
       achievements: keepAchievements,
       achievementsSeen: keepSeen,
+      achievementsHeld: keepHeld,
       achievementsSeenMigrated:
         incoming.achievementsSeenMigrated === true || Object.keys(keepSeen).length > 0,
       onboarded: true,
@@ -764,6 +797,7 @@
     importJson,
     saveAchievements,
     resetAchievements,
+    resetAchievement,
     defaultBottles,
     isOwalaBottle,
   };

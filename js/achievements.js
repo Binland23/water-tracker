@@ -557,6 +557,13 @@
     return store.achievementsSeen;
   }
 
+  function ensureHeldMap(store) {
+    if (!store.achievementsHeld || typeof store.achievementsHeld !== 'object' || Array.isArray(store.achievementsHeld)) {
+      store.achievementsHeld = {};
+    }
+    return store.achievementsHeld;
+  }
+
   function isUnlocked(store, id) {
     return Boolean(ensureMap(store)[id]);
   }
@@ -900,17 +907,23 @@
    * @returns {string[]} newly unlocked ids
    */
   function evaluate(store, storage, ctx = {}) {
-    if (store.achievementsResetPending && isPassiveEvaluate(ctx)) {
+    const held = ensureHeldMap(store);
+    const passive = isPassiveEvaluate(ctx);
+    if (store.achievementsResetPending && passive) {
       return [];
     }
     if (store.achievementsResetPending) store.achievementsResetPending = false;
+    if (!passive) {
+      for (const id of Object.keys(held)) delete held[id];
+    }
+    const blocked = (id) => passive && Boolean(held[id]);
 
     const map = ensureMap(store);
     const stats = buildStats(store, storage);
     const want = new Set();
 
     const mark = (id, cond) => {
-      if (cond && BY_ID[id] && !map[id]) want.add(id);
+      if (cond && BY_ID[id] && !map[id] && !blocked(id)) want.add(id);
     };
 
     mark('first-sip', (store.entries || []).length >= 1);
@@ -942,7 +955,7 @@
     mark('sports-mode', stats.hasLabel('sports drink'));
     mark('variety-pack', stats.typeKeys.size >= 4);
     // Also check historical variety days
-    if (!want.has('variety-pack') && !map['variety-pack']) {
+    if (!want.has('variety-pack') && !map['variety-pack'] && !blocked('variety-pack')) {
       const byDay = new Map();
       for (const e of store.entries || []) {
         const k = dayKey(new Date(e.ts));
@@ -997,30 +1010,30 @@
     mark('week-five', stats.weekFive);
 
     // Explorer flags: only unlock when the action happens (or photo already set via ctx)
-    if (ctx.photoSet) want.add('photo-finish');
-    if (ctx.goalChanged) want.add('goal-setter');
-    if (ctx.unitFlipped) want.add('unit-flip');
-    if (ctx.calendarOpened) want.add('calendar-peek');
-    if (ctx.achievementsOpened) want.add('achievements-tourist');
-    if (ctx.onboarded) want.add('onboarded');
-    if (ctx.insightsOpened) want.add('insights-peek');
-    if (ctx.themeChanged) want.add('theme-flip');
-    if (ctx.imported) want.add('imported');
-    if (ctx.entryEdited) want.add('editor');
-    if (ctx.goalCalculated) want.add('goal-lab');
+    if (ctx.photoSet && !blocked('photo-finish')) want.add('photo-finish');
+    if (ctx.goalChanged && !blocked('goal-setter')) want.add('goal-setter');
+    if (ctx.unitFlipped && !blocked('unit-flip')) want.add('unit-flip');
+    if (ctx.calendarOpened && !blocked('calendar-peek')) want.add('calendar-peek');
+    if (ctx.achievementsOpened && !blocked('achievements-tourist')) want.add('achievements-tourist');
+    if (ctx.onboarded && !blocked('onboarded')) want.add('onboarded');
+    if (ctx.insightsOpened && !blocked('insights-peek')) want.add('insights-peek');
+    if (ctx.themeChanged && !blocked('theme-flip')) want.add('theme-flip');
+    if (ctx.imported && !blocked('imported')) want.add('imported');
+    if (ctx.entryEdited && !blocked('editor')) want.add('editor');
+    if (ctx.goalCalculated && !blocked('goal-lab')) want.add('goal-lab');
 
     const bottles = store.bottles;
-    if (ctx.bottleAdded || (Array.isArray(bottles) && bottles.length > 1)) {
+    if ((ctx.bottleAdded || (Array.isArray(bottles) && bottles.length > 1)) && !blocked('bottle-maker')) {
       want.add('bottle-maker');
     }
-    if (ctx.drinkAdded || (store.customDrinks || []).length >= 1) {
+    if ((ctx.drinkAdded || (store.customDrinks || []).length >= 1) && !blocked('drink-maker')) {
       want.add('drink-maker');
     }
-    if (ctx.remindersEnabled || (store.reminders && store.reminders.enabled)) {
+    if ((ctx.remindersEnabled || (store.reminders && store.reminders.enabled)) && !blocked('reminder-set')) {
       want.add('reminder-set');
     }
     const paceWins = Number(store.paceWins) || 0;
-    if (paceWins >= 3 || (ctx.paceWin && paceWins >= 3)) {
+    if ((paceWins >= 3 || (ctx.paceWin && paceWins >= 3)) && !blocked('pace-ace')) {
       want.add('pace-ace');
     }
 
@@ -1041,15 +1054,15 @@
     }
 
     // Meta collectors after base unlocks land
-    if (!map.collector && Object.keys(map).length >= 10) {
+    if (!map.collector && Object.keys(map).length >= 10 && !blocked('collector')) {
       map.collector = now;
       newly.push('collector');
     }
-    if (!map.hoarder && Object.keys(map).length >= 25) {
+    if (!map.hoarder && Object.keys(map).length >= 25 && !blocked('hoarder')) {
       map.hoarder = now;
       newly.push('hoarder');
     }
-    if (!map.completionist) {
+    if (!map.completionist && !blocked('completionist')) {
       const nonMetaIds = CATALOG.filter((a) => a.category !== 'Meta').map((a) => a.id);
       if (nonMetaIds.every((id) => map[id])) {
         map.completionist = now;
@@ -1106,6 +1119,7 @@
     isUnlocked,
     ensureMap,
     ensureSeenMap,
+    ensureHeldMap,
     normalizeMap,
     evaluate,
     isPassiveEvaluate,
