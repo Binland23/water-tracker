@@ -402,8 +402,13 @@
   function processAchievements(ctx = {}) {
     if (!achievements?.evaluate) return [];
     const pending = store.achievementsResetPending === true;
+    const heldCount = Object.keys(store.achievementsHeld || {}).length;
     const newly = achievements.evaluate(store, storage, ctx);
-    if (newly.length || pending !== (store.achievementsResetPending === true)) {
+    if (
+      newly.length ||
+      pending !== (store.achievementsResetPending === true) ||
+      heldCount !== Object.keys(store.achievementsHeld || {}).length
+    ) {
       storage.saveAchievements(store);
       if (!ctx.silent && newly.length) {
         if (newly.length <= 2) {
@@ -527,6 +532,7 @@
     else {
       store.achievements = {};
       store.achievementsSeen = {};
+      store.achievementsHeld = {};
       store.achievementsResetPending = true;
     }
     highlightedAchievementIds.clear();
@@ -534,6 +540,20 @@
     updateAchievementsBadge();
     if (currentView === 'trophies') renderAchievementsPage();
     showToast('Trophies reset — log a drink to earn them again');
+  }
+
+  function resetTrophy(id) {
+    if (!id) return;
+    const def = achievements.defById?.(id);
+    const label = def?.title || 'this trophy';
+    if (!confirm(`Reset “${label}”? You can earn it again.`)) return;
+    const ok = storage.resetAchievement ? storage.resetAchievement(store, id) : false;
+    if (!ok) return;
+    highlightedAchievementIds.delete(id);
+    haptic('warning');
+    updateAchievementsBadge();
+    if (currentView === 'trophies') renderAchievementsPage();
+    showToast(`${label} reset`);
   }
 
   function rememberUnseenAchievements(ids = []) {
@@ -595,6 +615,9 @@
         : '';
     const newPill = isNew ? '<span class="ach-card-new">New</span>' : '';
     const classes = `ach-card${a.unlocked ? ' is-unlocked' : ' is-locked'}${isNew ? ' is-new' : ''}`;
+    const resetBtn = a.unlocked
+      ? `<button type="button" class="ach-card-reset" data-reset-ach="${escapeHtml(a.id)}" aria-label="Reset ${title}">Reset</button>`
+      : '';
     return `
       <article class="${classes}" data-ach-id="${escapeHtml(a.id)}" role="listitem">
         <span class="ach-card-icon" aria-hidden="true">${icon}</span>
@@ -603,7 +626,10 @@
           <p class="ach-card-desc">${desc}</p>
           ${when}
         </div>
-        <span class="ach-card-status" aria-hidden="true">${a.unlocked ? '✓' : ''}</span>
+        <div class="ach-card-side">
+          <span class="ach-card-status" aria-hidden="true">${a.unlocked ? '✓' : ''}</span>
+          ${resetBtn}
+        </div>
       </article>`;
   }
 
@@ -1985,6 +2011,12 @@
     });
     $('#btn-reset-trophies')?.addEventListener('click', resetTrophies);
     $('#btn-reset-trophies-settings')?.addEventListener('click', resetTrophies);
+    $('#achievements-list')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-reset-ach]');
+      if (!btn) return;
+      e.preventDefault();
+      resetTrophy(btn.getAttribute('data-reset-ach'));
+    });
 
     $('#onboard-next')?.addEventListener('click', () => {
       if (onboardStep < 3) {
