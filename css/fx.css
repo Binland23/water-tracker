@@ -764,6 +764,10 @@ body.has-photo-bg .achievements-card {
   -webkit-backdrop-filter: blur(14px);
 }
 
+body.has-photo-bg .ach-card.is-new {
+  background: color-mix(in srgb, var(--warning) 18%, rgba(8, 20, 28, 0.88));
+}
+
 body.has-photo-bg .sheet {
   background: color-mix(in srgb, var(--bg-elevated) 94%, rgba(8, 20, 28, 0.95));
 }

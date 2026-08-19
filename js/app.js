@@ -42,6 +42,8 @@
   let electrolytesSticks = ELECTROLYTES.defaultSticks;
   let achievementToastQueue = [];
   let achievementToastBusy = false;
+  /** Unseen unlocks highlighted on the Trophies tab for this visit. */
+  let highlightedAchievementIds = new Set();
   let currentView = 'today';
   let onboardStep = 0;
   let editingId = null;
@@ -286,7 +288,9 @@
   function setView(name, { persist = true } = {}) {
     const allowed = ['today', 'insights', 'calendar', 'trophies'];
     const view = allowed.includes(name) ? name : 'today';
+    const leavingTrophies = currentView === 'trophies' && view !== 'trophies';
     currentView = view;
+    if (leavingTrophies) highlightedAchievementIds.clear();
     $$('.app-view').forEach((el) => {
       const on = el.dataset.view === view;
       el.hidden = !on;
@@ -313,6 +317,7 @@
     }
     if (view === 'trophies') {
       processAchievements({ achievementsOpened: true });
+      rememberUnseenAchievements();
       markAchievementsSeen();
       renderAchievementsPage();
     }
@@ -409,8 +414,9 @@
         }, 800);
       }
       if (currentView === 'trophies') {
+        rememberUnseenAchievements(newly);
         markAchievementsSeen();
-        renderAchievementsPage();
+        renderAchievementsPage({ scrollToNew: true });
       } else {
         updateAchievementsBadge();
       }
@@ -509,6 +515,15 @@
     }, 2700);
   }
 
+  function rememberUnseenAchievements(ids = []) {
+    for (const id of ids) {
+      if (id) highlightedAchievementIds.add(id);
+    }
+    if (achievements?.unseenIds) {
+      for (const id of achievements.unseenIds(store)) highlightedAchievementIds.add(id);
+    }
+  }
+
   function markAchievementsSeen() {
     if (!achievements?.markSeen) return;
     if (achievements.markSeen(store)) storage.saveAchievements(store);
@@ -541,7 +556,37 @@
     }
   }
 
-  function renderAchievementsPage() {
+  function achievementCardHtml(a, { isNew = false } = {}) {
+    const locked = !a.unlocked;
+    const secretLocked = locked && a.secret;
+    const title = secretLocked ? '???' : escapeHtml(a.title);
+    const desc = secretLocked ? 'Keep hydrating to discover this one.' : escapeHtml(a.desc);
+    const icon = secretLocked ? '🔒' : a.icon;
+    const when =
+      a.unlocked && a.unlockedAt
+        ? `<span class="ach-card-when">${escapeHtml(
+            new Date(a.unlockedAt).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          )}</span>`
+        : '';
+    const newPill = isNew ? '<span class="ach-card-new">New</span>' : '';
+    const classes = `ach-card${a.unlocked ? ' is-unlocked' : ' is-locked'}${isNew ? ' is-new' : ''}`;
+    return `
+      <article class="${classes}" data-ach-id="${escapeHtml(a.id)}" role="listitem">
+        <span class="ach-card-icon" aria-hidden="true">${icon}</span>
+        <div class="ach-card-text">
+          <h3 class="ach-card-title">${title}${newPill}</h3>
+          <p class="ach-card-desc">${desc}</p>
+          ${when}
+        </div>
+        <span class="ach-card-status" aria-hidden="true">${a.unlocked ? '✓' : ''}</span>
+      </article>`;
+  }
+
+  function renderAchievementsPage({ scrollToNew = false } = {}) {
     const list = $('#achievements-list');
     const progress = $('#achievements-progress');
     const fill = $('#achievements-progress-fill');
@@ -552,40 +597,38 @@
     if (progress) progress.textContent = `${unlocked} / ${total} unlocked`;
     if (fill) fill.style.width = `${pct}%`;
     const groups = achievements.listForUi(store);
-    list.innerHTML = groups
+    const newItems = [];
+    for (const g of groups) {
+      for (const a of g.items) {
+        if (a.unlocked && highlightedAchievementIds.has(a.id)) newItems.push(a);
+      }
+    }
+    newItems.sort((a, b) => (b.unlockedAt || 0) - (a.unlockedAt || 0));
+    const justUnlocked =
+      newItems.length > 0
+        ? `<section id="ach-just-unlocked" class="ach-group ach-group-new">
+            <h3 class="ach-group-title">Just unlocked</h3>
+            <div class="ach-group-grid">${newItems.map((a) => achievementCardHtml(a, { isNew: true })).join('')}</div>
+          </section>`
+        : '';
+    const catalog = groups
       .map((g) => {
         const items = g.items
-          .map((a) => {
-            const locked = !a.unlocked;
-            const secretLocked = locked && a.secret;
-            const title = secretLocked ? '???' : escapeHtml(a.title);
-            const desc = secretLocked ? 'Keep hydrating to discover this one.' : escapeHtml(a.desc);
-            const icon = secretLocked ? '🔒' : a.icon;
-            const when =
-              a.unlocked && a.unlockedAt
-                ? `<span class="ach-card-when">${escapeHtml(
-                    new Date(a.unlockedAt).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })
-                  )}</span>`
-                : '';
-            return `
-              <article class="ach-card${a.unlocked ? ' is-unlocked' : ' is-locked'}" role="listitem">
-                <span class="ach-card-icon" aria-hidden="true">${icon}</span>
-                <div class="ach-card-text">
-                  <h3 class="ach-card-title">${title}</h3>
-                  <p class="ach-card-desc">${desc}</p>
-                  ${when}
-                </div>
-                <span class="ach-card-status" aria-hidden="true">${a.unlocked ? '✓' : ''}</span>
-              </article>`;
-          })
+          .map((a) => achievementCardHtml(a, { isNew: Boolean(a.unlocked && highlightedAchievementIds.has(a.id)) }))
           .join('');
         return `<section class="ach-group"><h3 class="ach-group-title">${escapeHtml(g.category)}</h3><div class="ach-group-grid">${items}</div></section>`;
       })
       .join('');
+    list.innerHTML = justUnlocked + catalog;
+    if (scrollToNew && newItems.length) {
+      const spotlight = $('#ach-just-unlocked');
+      if (spotlight && typeof spotlight.scrollIntoView === 'function') {
+        spotlight.scrollIntoView({
+          behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+          block: 'start',
+        });
+      }
+    }
   }
 
   function lockPortraitOrientation() {
