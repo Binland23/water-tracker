@@ -1129,15 +1129,31 @@ legend.field-label {
   border: 1px solid var(--border);
 }
 
+.cal-day-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .cal-day-title {
   margin: 0;
   font-weight: 600;
 }
 
 .cal-day-summary {
-  margin: 4px 0 12px;
+  margin: 4px 0 0;
   font-size: 0.82rem;
   color: var(--text-muted);
+}
+
+.cal-day-add {
+  width: auto;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 0.82rem;
 }
 
 /* —— Trophies —— */

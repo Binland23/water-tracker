@@ -1356,7 +1356,9 @@
     if (total === 0) summary.textContent = `0 ${unit} · 0% of ${formatAmountWithUnit(goal, unit)} goal`;
     else if (total >= goal) summary.textContent = `${formatAmountWithUnit(total, unit)} · Goal met (${pct}%)`;
     else summary.textContent = `${formatAmountWithUnit(total, unit)} · ${pct}% of goal`;
-    renderLogList($('#cal-day-list'), $('#cal-day-empty'), entries, { actionable: selected === dayKey() });
+    renderLogList($('#cal-day-list'), $('#cal-day-empty'), entries, { actionable: selected <= dayKey() });
+    const addBtn = $('#cal-day-add');
+    if (addBtn) addBtn.hidden = selected > dayKey();
   }
 
   function renderInsights() {
@@ -1563,13 +1565,27 @@
 
   function addWater(waterMl, opts = {}) {
     if (!waterMl || waterMl <= 0) return;
-    const beforeTotal = storage.totalForDay(store);
-    const wasReached = beforeTotal >= store.goalMl && store.goalMl > 0;
+    const targetKey = opts.ts ? dayKey(new Date(opts.ts)) : dayKey();
+    const loggingToday = targetKey === dayKey();
+    const dayGoal = storage.goalForDay(store, targetKey);
+    const beforeTotal = storage.totalForDay(store, targetKey);
+    const wasReached = beforeTotal >= dayGoal && dayGoal > 0;
     const entry = storage.addEntry(store, waterMl, opts);
     const isEly = typeof entry.electrolytes === 'number' && entry.electrolytes >= 1;
-    const afterTotal = storage.totalForDay(store);
-    const nowReached = afterTotal >= store.goalMl && store.goalMl > 0;
+    const afterTotal = storage.totalForDay(store, targetKey);
+    const nowReached = afterTotal >= dayGoal && dayGoal > 0;
     const justMetGoal = nowReached && !wasReached && afterTotal > 0;
+
+    if (!loggingToday) {
+      haptic('medium');
+      render();
+      const when = formatDayLabel(parseDayKey(targetKey));
+      const water = formatAmountWithUnit(entry.ml, store.unit);
+      if (entry.label) showToast(`+${water} · ${entry.label} · ${when}`);
+      else showToast(`+${water} water · ${when}`);
+      processAchievements();
+      return entry;
+    }
 
     if (isEly || opts.charged) {
       if (!justMetGoal) haptic('success');
@@ -1612,11 +1628,11 @@
     return entry;
   }
 
-  function addElectrolytes(volumeMl, sticks) {
+  function addElectrolytes(volumeMl, sticks, opts = {}) {
     const n = electrolytesSticksClamp(sticks);
     const vol = electrolytesWaterMl(volumeMl);
     if (vol <= 0) return null;
-    return addWater(vol, { label: ELECTROLYTES.label, volumeMl: vol, electrolytes: n, charged: true });
+    return addWater(vol, { label: ELECTROLYTES.label, volumeMl: vol, electrolytes: n, charged: true, ...opts });
   }
 
   function addDrinkVolume(preset, volumeMl, extra = {}) {
@@ -1722,6 +1738,125 @@
     setUndo(removed);
   }
 
+  function tsFromDayTime(key, timeStr) {
+    const today = dayKey();
+    if (!key || key > today) return Date.now();
+    const d = parseDayKey(key);
+    if (timeStr && /^\d{2}:\d{2}$/.test(timeStr)) {
+      const [hh, mm] = timeStr.split(':').map(Number);
+      d.setHours(hh, mm, 0, 0);
+    } else if (key === today) {
+      return Date.now();
+    } else {
+      d.setHours(12, 0, 0, 0);
+    }
+    if (key === today && d.getTime() > Date.now()) return Date.now();
+    return d.getTime();
+  }
+
+  function defaultTimeForDay(key) {
+    if (key === dayKey()) {
+      const n = new Date();
+      return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+    }
+    const entries = storage.entriesForDay(store, key);
+    if (entries.length) {
+      const last = new Date(entries[0].ts);
+      return `${String(last.getHours()).padStart(2, '0')}:${String(last.getMinutes()).padStart(2, '0')}`;
+    }
+    return '12:00';
+  }
+
+  function populateDayAddKinds() {
+    const sel = $('#day-add-kind');
+    if (!sel) return;
+    const prev = sel.value;
+    const bottles = store.bottles && store.bottles.length ? store.bottles : storage.defaultBottles();
+    const drinks = storage.allDrinkPresets(store);
+    sel.innerHTML = [
+      `<option value="water">Water</option>`,
+      ...bottles.map((b) => `<option value="bottle:${escapeHtml(b.id)}">${escapeHtml(b.label)}</option>`),
+      `<option value="electrolytes">ELECTROLYTES</option>`,
+      ...drinks.map((d) => `<option value="drink:${escapeHtml(d.id)}">${escapeHtml(d.label)}</option>`),
+    ].join('');
+    if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
+  }
+
+  function prefillDayAddAmount() {
+    const kind = $('#day-add-kind')?.value || 'water';
+    const amount = $('#day-add-amount');
+    const sticksRow = $('#day-add-sticks-row');
+    if (sticksRow) sticksRow.hidden = kind !== 'electrolytes';
+    if (!amount) return;
+    const unit = store.unit;
+    const setFromOz = (oz) => {
+      amount.value = unit === 'oz' ? String(oz) : String(Math.round(ozToMl(oz)));
+    };
+    if (kind === 'electrolytes') setFromOz(ELECTROLYTES.defaultOz);
+    else if (kind.startsWith('bottle:')) {
+      const id = kind.slice(7);
+      const bottle = (store.bottles || storage.defaultBottles()).find((b) => b.id === id) || getOwalaBottle();
+      if (bottle) setFromOz(bottle.oz);
+    } else if (kind.startsWith('drink:')) {
+      const preset = storage.resolveDrink(store, kind.slice(6));
+      if (preset && typeof preset.oz === 'number') setFromOz(preset.oz);
+    } else {
+      setFromOz(16);
+    }
+  }
+
+  function openDayAddSheet() {
+    const key = calState.selectedKey;
+    if (!key || key > dayKey()) return;
+    populateDayAddKinds();
+    const title = $('#day-add-title');
+    const unitLabel = $('#day-add-unit');
+    $('#day-add-key').value = key;
+    if (title) title.textContent = key === dayKey() ? 'Add to today' : `Add to ${formatDayLabel(parseDayKey(key))}`;
+    if (unitLabel) unitLabel.textContent = store.unit;
+    $('#day-add-kind').value = 'water';
+    $('#day-add-amount').value = '';
+    $('#day-add-time').value = defaultTimeForDay(key);
+    const sticks = $('#day-add-sticks');
+    if (sticks) sticks.value = String(ELECTROLYTES.defaultSticks);
+    prefillDayAddAmount();
+    openSheet('#day-add-sheet');
+  }
+
+  function submitDayAdd(ev) {
+    ev.preventDefault();
+    const key = $('#day-add-key').value;
+    const volumeMl = toMl($('#day-add-amount').value, store.unit);
+    if (!key || key > dayKey()) {
+      showToast('Pick a day that isn’t in the future');
+      return;
+    }
+    if (!volumeMl) {
+      showToast('Enter a valid amount');
+      return;
+    }
+    const ts = tsFromDayTime(key, $('#day-add-time').value);
+    const kind = $('#day-add-kind')?.value || 'water';
+    closeSheets();
+    if (kind === 'electrolytes') {
+      addElectrolytes(volumeMl, $('#day-add-sticks')?.value, { ts });
+      return;
+    }
+    if (kind.startsWith('bottle:')) {
+      const bottle = (store.bottles || storage.defaultBottles()).find((b) => b.id === kind.slice(7));
+      if (!bottle) return;
+      addDrinkVolume({ ...bottle, hydration: 1 }, volumeMl, { bottleId: bottle.id, ts });
+      return;
+    }
+    if (kind.startsWith('drink:')) {
+      const preset = storage.resolveDrink(store, kind.slice(6));
+      if (!preset) return;
+      addDrinkVolume(preset, volumeMl, { drinkId: preset.id, ts });
+      return;
+    }
+    addWater(volumeMl, { ts });
+  }
+
   function openEditSheet(id) {
     const entry = store.entries.find((e) => e.id === id);
     if (!entry) return;
@@ -1731,6 +1866,12 @@
     $('#edit-amount').value =
       store.unit === 'oz' ? String(Math.round(mlToOz(entry.ml) * 10) / 10) : String(entry.ml);
     const d = new Date(entry.ts);
+    const key = dayKey(d);
+    const dateInput = $('#edit-date');
+    if (dateInput) {
+      dateInput.value = key;
+      dateInput.max = dayKey();
+    }
     $('#edit-time').value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     $('#edit-meta').textContent = entry.label ? entry.label : 'Plain water';
     openSheet('#edit-sheet');
@@ -1746,19 +1887,34 @@
     }
     const entry = store.entries.find((e) => e.id === id);
     if (!entry) return;
+    const oldKey = dayKey(new Date(entry.ts));
+    const dateVal = $('#edit-date')?.value;
+    if (dateVal && dateVal > dayKey()) {
+      showToast('Can’t move an entry into the future');
+      return;
+    }
     const time = $('#edit-time').value;
     let ts = entry.ts;
-    if (time && /^\d{2}:\d{2}$/.test(time)) {
+    if (dateVal && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+      ts = tsFromDayTime(dateVal, time);
+    } else if (time && /^\d{2}:\d{2}$/.test(time)) {
       const [hh, mm] = time.split(':').map(Number);
       const d = new Date(entry.ts);
       d.setHours(hh, mm, 0, 0);
       ts = d.getTime();
     }
     storage.updateEntry(store, id, { ml, ts });
+    const newKey = dayKey(new Date(ts));
+    if (newKey !== oldKey) {
+      calState.selectedKey = newKey;
+      const d = parseDayKey(newKey);
+      calState.year = d.getFullYear();
+      calState.month = d.getMonth();
+    }
     closeSheets();
     haptic('medium');
     render();
-    showToast('Entry updated');
+    showToast(newKey !== oldKey ? `Moved to ${formatDayLabel(parseDayKey(newKey))}` : 'Entry updated');
     processAchievements({ entryEdited: true });
   }
 
@@ -2108,6 +2264,9 @@
     };
     $('#log-list')?.addEventListener('click', onLogClick);
     $('#cal-day-list')?.addEventListener('click', onLogClick);
+    $('#cal-day-add')?.addEventListener('click', () => openDayAddSheet());
+    $('#day-add-kind')?.addEventListener('change', prefillDayAddAmount);
+    $('#day-add-form')?.addEventListener('submit', submitDayAdd);
     $('#edit-form')?.addEventListener('submit', saveEdit);
     $('#edit-delete')?.addEventListener('click', () => {
       if (!editingId) return;
