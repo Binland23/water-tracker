@@ -47,6 +47,23 @@
   let currentView = 'today';
   let onboardStep = 0;
   let editingId = null;
+  const TAB_PILL_INSET = 3;
+  const tabNav = {
+    dragging: false,
+    moved: false,
+    pointerId: null,
+    startX: 0,
+    startView: 'today',
+    lastX: 0,
+    lastT: 0,
+    vx: 0,
+    left: 0,
+    width: 0,
+    targetLeft: 0,
+    targetWidth: 0,
+    raf: 0,
+    lastCrossed: -1,
+  };
 
   const calState = {
     year: new Date().getFullYear(),
@@ -254,25 +271,104 @@
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
+  function tabButtons() {
+    return $$('.tab-btn');
+  }
+
+  function tabNavMetrics() {
+    return tabButtons().map((btn) => ({
+      name: btn.dataset.nav,
+      btn,
+      left: btn.offsetLeft + TAB_PILL_INSET,
+      width: Math.max(0, btn.offsetWidth - TAB_PILL_INSET * 2),
+      center: btn.offsetLeft + btn.offsetWidth / 2,
+    }));
+  }
+
+  function tabNavPositionAt(xInGlass, metrics) {
+    if (!metrics.length) return { left: 0, width: 0, t: 0, f: 0 };
+    const first = metrics[0];
+    const last = metrics[metrics.length - 1];
+    const span = last.center - first.center;
+    let t = span ? (xInGlass - first.center) / span : 0;
+    if (t < 0) t *= 0.22;
+    else if (t > 1) t = 1 + (t - 1) * 0.22;
+    t = clamp(t, -0.07, 1.07);
+    return {
+      left: first.left + t * (last.left - first.left),
+      width: first.width + t * (last.width - first.width),
+      t,
+      f: t * Math.max(metrics.length - 1, 0),
+    };
+  }
+
+  function tabIndexFromLeft(left, metrics) {
+    if (!metrics.length) return 0;
+    const span = metrics[metrics.length - 1].left - metrics[0].left;
+    if (!span) return 0;
+    return ((left - metrics[0].left) / span) * (metrics.length - 1);
+  }
+
+  function readIndicatorPose() {
+    const indicator = $('.tab-indicator');
+    if (!indicator) return { left: tabNav.left, width: tabNav.width };
+    const computed = getComputedStyle(indicator);
+    const width = parseFloat(computed.width);
+    let left = tabNav.left;
+    const t = computed.transform;
+    if (t && t !== 'none') {
+      const parts = t.replace(/^matrix3d\(|^matrix\(|\)$/g, '').split(',').map(Number);
+      const tx = parts.length === 16 ? parts[12] : parts[4];
+      if (Number.isFinite(tx)) left = tx;
+    }
+    return {
+      left,
+      width: Number.isFinite(width) && width > 0 ? width : tabNav.width,
+    };
+  }
+
+  function paintTabIndicator(left, width, { stretch = 1, shine } = {}) {
+    const indicator = $('.tab-indicator');
+    if (!indicator) return;
+    const extra = Math.max(0, width * (stretch - 1));
+    indicator.style.width = `${Math.max(0, width + extra)}px`;
+    indicator.style.transform = `translate3d(${left - extra / 2}px, 0, 0)`;
+    indicator.style.setProperty('--blob-stretch', String(stretch));
+    if (typeof shine === 'number') indicator.style.setProperty('--blob-shine', `${shine}%`);
+    const trail = clamp(-((stretch - 1) * 30) * Math.sign(tabNav.vx || 0), -24, 24);
+    indicator.style.setProperty('--blob-trail', `${trail}px`);
+  }
+
+  function applyTabHeat(f) {
+    tabButtons().forEach((btn, i) => {
+      btn.style.setProperty('--tab-heat', clamp(1 - Math.abs(f - i) * 0.92, 0, 1).toFixed(3));
+    });
+  }
+
+  function clearTabHeat() {
+    tabButtons().forEach((btn) => btn.style.removeProperty('--tab-heat'));
+  }
+
   function updateTabIndicator({ animate = true } = {}) {
-    const glass = $('.tab-nav-glass');
+    if (tabNav.dragging) return;
     const indicator = $('.tab-indicator');
     const active = $('.tab-btn.is-active');
-    if (!glass || !indicator || !active) return;
+    if (!indicator || !active) return;
 
-    const insetX = 3;
-    const left = active.offsetLeft + insetX;
-    const width = Math.max(0, active.offsetWidth - insetX * 2);
+    const left = active.offsetLeft + TAB_PILL_INSET;
+    const width = Math.max(0, active.offsetWidth - TAB_PILL_INSET * 2);
+    tabNav.left = left;
+    tabNav.width = width;
+    tabNav.targetLeft = left;
+    tabNav.targetWidth = width;
     const shouldAnimate = animate && indicator.classList.contains('is-ready') && !prefersReducedMotion();
 
     if (!shouldAnimate) indicator.classList.add('is-snapping');
     else indicator.classList.remove('is-snapping');
 
-    indicator.style.width = `${width}px`;
-    indicator.style.transform = `translate3d(${left}px, 0, 0)`;
+    paintTabIndicator(left, width, { stretch: 1, shine: 30 });
 
     if (!indicator.classList.contains('is-ready')) {
-      // Place first without a fade-from-zero slide.
       void indicator.offsetWidth;
       indicator.classList.add('is-ready');
       indicator.classList.remove('is-snapping');
@@ -283,6 +379,173 @@
       void indicator.offsetWidth;
       indicator.classList.remove('is-snapping');
     }
+  }
+
+  function bindTabNav() {
+    const glass = $('.tab-nav-glass');
+    const indicator = $('.tab-indicator');
+    if (!glass || !indicator) return;
+
+    const DRAG_PX = 14;
+    const FLICK_VX = 0.85;
+
+    const xInGlass = (clientX) => clientX - glass.getBoundingClientRect().left;
+
+    const stopLoop = () => {
+      if (!tabNav.raf) return;
+      cancelAnimationFrame(tabNav.raf);
+      tabNav.raf = 0;
+    };
+
+    const tick = () => {
+      tabNav.raf = 0;
+      if (!tabNav.dragging) return;
+      const follow = prefersReducedMotion() ? 1 : 0.4;
+      tabNav.left += (tabNav.targetLeft - tabNav.left) * follow;
+      tabNav.width += (tabNav.targetWidth - tabNav.width) * follow;
+      const stretch = prefersReducedMotion() ? 1 : 1 + Math.min(0.48, Math.abs(tabNav.vx) * 16 * 0.016);
+      paintTabIndicator(tabNav.left, tabNav.width, {
+        stretch,
+        shine: clamp(30 + tabNav.vx * 140, 12, 88),
+      });
+      const metrics = tabNavMetrics();
+      const f = tabIndexFromLeft(tabNav.left, metrics);
+      applyTabHeat(f);
+      const crossed = Math.round(clamp(f, 0, Math.max(metrics.length - 1, 0)));
+      if (metrics.length && crossed !== tabNav.lastCrossed) {
+        tabNav.lastCrossed = crossed;
+        haptic('light');
+      }
+      tabNav.vx *= 0.9;
+      tabNav.raf = requestAnimationFrame(tick);
+    };
+
+    const startLoop = () => {
+      if (!tabNav.raf) tabNav.raf = requestAnimationFrame(tick);
+    };
+
+    glass.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (tabNav.pointerId != null) return;
+      const metrics = tabNavMetrics();
+      if (!metrics.length) return;
+      tabNav.pointerId = e.pointerId;
+      tabNav.startX = e.clientX;
+      tabNav.lastX = e.clientX;
+      tabNav.lastT = performance.now();
+      tabNav.vx = 0;
+      tabNav.moved = false;
+      tabNav.startView = currentView;
+      tabNav.lastCrossed = metrics.findIndex((m) => m.name === currentView);
+    });
+
+    glass.addEventListener('pointermove', (e) => {
+      if (tabNav.pointerId !== e.pointerId) return;
+      const now = performance.now();
+      const dt = Math.max(8, now - tabNav.lastT);
+      tabNav.vx = tabNav.vx * 0.5 + ((e.clientX - tabNav.lastX) / dt) * 0.5;
+      tabNav.lastX = e.clientX;
+      tabNav.lastT = now;
+
+      if (!tabNav.moved && Math.abs(e.clientX - tabNav.startX) < DRAG_PX) return;
+
+      if (!tabNav.moved) {
+        tabNav.moved = true;
+        tabNav.dragging = true;
+        const pose = readIndicatorPose();
+        tabNav.left = pose.left;
+        tabNav.width = pose.width;
+        glass.classList.add('is-dragging-tabs');
+        indicator.classList.add('is-dragging');
+        indicator.classList.remove('is-settling', 'is-snapping');
+        try {
+          glass.setPointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const pos = tabNavPositionAt(xInGlass(e.clientX), tabNavMetrics());
+      tabNav.targetLeft = pos.left;
+      tabNav.targetWidth = pos.width;
+      startLoop();
+    });
+
+    const finish = (e) => {
+      if (tabNav.pointerId !== e.pointerId) return;
+      const didDrag = tabNav.moved;
+      const vx = tabNav.vx;
+      tabNav.pointerId = null;
+      tabNav.moved = false;
+      stopLoop();
+      try {
+        if (glass.hasPointerCapture(e.pointerId)) glass.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      const swallowClick = () => {
+        const swallow = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        };
+        glass.addEventListener('click', swallow, true);
+        setTimeout(() => glass.removeEventListener('click', swallow, true), 320);
+      };
+
+      if (!didDrag) {
+        tabNav.dragging = false;
+        const hit = document.elementFromPoint(e.clientX, e.clientY);
+        const btn = hit && hit.closest ? hit.closest('.tab-btn') : null;
+        if (btn && btn.dataset.nav) {
+          swallowClick();
+          haptic('light');
+          setView(btn.dataset.nav);
+          render();
+        }
+        return;
+      }
+
+      swallowClick();
+
+      const metrics = tabNavMetrics();
+      const n = Math.max(metrics.length - 1, 0);
+      let idx = Math.round(clamp(tabIndexFromLeft(tabNav.targetLeft, metrics), 0, n));
+      const startIdx = Math.max(
+        0,
+        metrics.findIndex((m) => m.name === (tabNav.startView || currentView))
+      );
+      if (Math.abs(vx) > FLICK_VX && idx === startIdx) {
+        idx = clamp(startIdx + Math.sign(vx), 0, n);
+      }
+      const next = (metrics[idx] && metrics[idx].name) || currentView;
+
+      paintTabIndicator(tabNav.left, tabNav.width, { stretch: 1, shine: 30 });
+      void indicator.offsetWidth;
+      tabNav.dragging = false;
+      glass.classList.remove('is-dragging-tabs');
+      indicator.classList.remove('is-dragging');
+      indicator.classList.add('is-settling');
+      clearTabHeat();
+      haptic('light');
+      if (next !== currentView) {
+        setView(next);
+        render();
+      } else {
+        updateTabIndicator();
+      }
+    };
+
+    glass.addEventListener('pointerup', finish);
+    glass.addEventListener('pointercancel', finish);
+    glass.addEventListener('lostpointercapture', (e) => {
+      if (tabNav.pointerId === e.pointerId) finish(e);
+    });
+    indicator.addEventListener('transitionend', (e) => {
+      if (e.target !== indicator) return;
+      if (e.propertyName === 'transform' || e.propertyName === 'width') {
+        indicator.classList.remove('is-settling');
+      }
+    });
   }
 
   function setView(name, { persist = true } = {}) {
@@ -1093,7 +1356,9 @@
     if (total === 0) summary.textContent = `0 ${unit} · 0% of ${formatAmountWithUnit(goal, unit)} goal`;
     else if (total >= goal) summary.textContent = `${formatAmountWithUnit(total, unit)} · Goal met (${pct}%)`;
     else summary.textContent = `${formatAmountWithUnit(total, unit)} · ${pct}% of goal`;
-    renderLogList($('#cal-day-list'), $('#cal-day-empty'), entries, { actionable: selected === dayKey() });
+    renderLogList($('#cal-day-list'), $('#cal-day-empty'), entries, { actionable: selected <= dayKey() });
+    const addBtn = $('#cal-day-add');
+    if (addBtn) addBtn.hidden = selected > dayKey();
   }
 
   function renderInsights() {
@@ -1300,13 +1565,27 @@
 
   function addWater(waterMl, opts = {}) {
     if (!waterMl || waterMl <= 0) return;
-    const beforeTotal = storage.totalForDay(store);
-    const wasReached = beforeTotal >= store.goalMl && store.goalMl > 0;
+    const targetKey = opts.ts ? dayKey(new Date(opts.ts)) : dayKey();
+    const loggingToday = targetKey === dayKey();
+    const dayGoal = storage.goalForDay(store, targetKey);
+    const beforeTotal = storage.totalForDay(store, targetKey);
+    const wasReached = beforeTotal >= dayGoal && dayGoal > 0;
     const entry = storage.addEntry(store, waterMl, opts);
     const isEly = typeof entry.electrolytes === 'number' && entry.electrolytes >= 1;
-    const afterTotal = storage.totalForDay(store);
-    const nowReached = afterTotal >= store.goalMl && store.goalMl > 0;
+    const afterTotal = storage.totalForDay(store, targetKey);
+    const nowReached = afterTotal >= dayGoal && dayGoal > 0;
     const justMetGoal = nowReached && !wasReached && afterTotal > 0;
+
+    if (!loggingToday) {
+      haptic('medium');
+      render();
+      const when = formatDayLabel(parseDayKey(targetKey));
+      const water = formatAmountWithUnit(entry.ml, store.unit);
+      if (entry.label) showToast(`+${water} · ${entry.label} · ${when}`);
+      else showToast(`+${water} water · ${when}`);
+      processAchievements();
+      return entry;
+    }
 
     if (isEly || opts.charged) {
       if (!justMetGoal) haptic('success');
@@ -1349,11 +1628,11 @@
     return entry;
   }
 
-  function addElectrolytes(volumeMl, sticks) {
+  function addElectrolytes(volumeMl, sticks, opts = {}) {
     const n = electrolytesSticksClamp(sticks);
     const vol = electrolytesWaterMl(volumeMl);
     if (vol <= 0) return null;
-    return addWater(vol, { label: ELECTROLYTES.label, volumeMl: vol, electrolytes: n, charged: true });
+    return addWater(vol, { label: ELECTROLYTES.label, volumeMl: vol, electrolytes: n, charged: true, ...opts });
   }
 
   function addDrinkVolume(preset, volumeMl, extra = {}) {
@@ -1459,6 +1738,125 @@
     setUndo(removed);
   }
 
+  function tsFromDayTime(key, timeStr) {
+    const today = dayKey();
+    if (!key || key > today) return Date.now();
+    const d = parseDayKey(key);
+    if (timeStr && /^\d{2}:\d{2}$/.test(timeStr)) {
+      const [hh, mm] = timeStr.split(':').map(Number);
+      d.setHours(hh, mm, 0, 0);
+    } else if (key === today) {
+      return Date.now();
+    } else {
+      d.setHours(12, 0, 0, 0);
+    }
+    if (key === today && d.getTime() > Date.now()) return Date.now();
+    return d.getTime();
+  }
+
+  function defaultTimeForDay(key) {
+    if (key === dayKey()) {
+      const n = new Date();
+      return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+    }
+    const entries = storage.entriesForDay(store, key);
+    if (entries.length) {
+      const last = new Date(entries[0].ts);
+      return `${String(last.getHours()).padStart(2, '0')}:${String(last.getMinutes()).padStart(2, '0')}`;
+    }
+    return '12:00';
+  }
+
+  function populateDayAddKinds() {
+    const sel = $('#day-add-kind');
+    if (!sel) return;
+    const prev = sel.value;
+    const bottles = store.bottles && store.bottles.length ? store.bottles : storage.defaultBottles();
+    const drinks = storage.allDrinkPresets(store);
+    sel.innerHTML = [
+      `<option value="water">Water</option>`,
+      ...bottles.map((b) => `<option value="bottle:${escapeHtml(b.id)}">${escapeHtml(b.label)}</option>`),
+      `<option value="electrolytes">ELECTROLYTES</option>`,
+      ...drinks.map((d) => `<option value="drink:${escapeHtml(d.id)}">${escapeHtml(d.label)}</option>`),
+    ].join('');
+    if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
+  }
+
+  function prefillDayAddAmount() {
+    const kind = $('#day-add-kind')?.value || 'water';
+    const amount = $('#day-add-amount');
+    const sticksRow = $('#day-add-sticks-row');
+    if (sticksRow) sticksRow.hidden = kind !== 'electrolytes';
+    if (!amount) return;
+    const unit = store.unit;
+    const setFromOz = (oz) => {
+      amount.value = unit === 'oz' ? String(oz) : String(Math.round(ozToMl(oz)));
+    };
+    if (kind === 'electrolytes') setFromOz(ELECTROLYTES.defaultOz);
+    else if (kind.startsWith('bottle:')) {
+      const id = kind.slice(7);
+      const bottle = (store.bottles || storage.defaultBottles()).find((b) => b.id === id) || getOwalaBottle();
+      if (bottle) setFromOz(bottle.oz);
+    } else if (kind.startsWith('drink:')) {
+      const preset = storage.resolveDrink(store, kind.slice(6));
+      if (preset && typeof preset.oz === 'number') setFromOz(preset.oz);
+    } else {
+      setFromOz(16);
+    }
+  }
+
+  function openDayAddSheet() {
+    const key = calState.selectedKey;
+    if (!key || key > dayKey()) return;
+    populateDayAddKinds();
+    const title = $('#day-add-title');
+    const unitLabel = $('#day-add-unit');
+    $('#day-add-key').value = key;
+    if (title) title.textContent = key === dayKey() ? 'Add to today' : `Add to ${formatDayLabel(parseDayKey(key))}`;
+    if (unitLabel) unitLabel.textContent = store.unit;
+    $('#day-add-kind').value = 'water';
+    $('#day-add-amount').value = '';
+    $('#day-add-time').value = defaultTimeForDay(key);
+    const sticks = $('#day-add-sticks');
+    if (sticks) sticks.value = String(ELECTROLYTES.defaultSticks);
+    prefillDayAddAmount();
+    openSheet('#day-add-sheet');
+  }
+
+  function submitDayAdd(ev) {
+    ev.preventDefault();
+    const key = $('#day-add-key').value;
+    const volumeMl = toMl($('#day-add-amount').value, store.unit);
+    if (!key || key > dayKey()) {
+      showToast('Pick a day that isn’t in the future');
+      return;
+    }
+    if (!volumeMl) {
+      showToast('Enter a valid amount');
+      return;
+    }
+    const ts = tsFromDayTime(key, $('#day-add-time').value);
+    const kind = $('#day-add-kind')?.value || 'water';
+    closeSheets();
+    if (kind === 'electrolytes') {
+      addElectrolytes(volumeMl, $('#day-add-sticks')?.value, { ts });
+      return;
+    }
+    if (kind.startsWith('bottle:')) {
+      const bottle = (store.bottles || storage.defaultBottles()).find((b) => b.id === kind.slice(7));
+      if (!bottle) return;
+      addDrinkVolume({ ...bottle, hydration: 1 }, volumeMl, { bottleId: bottle.id, ts });
+      return;
+    }
+    if (kind.startsWith('drink:')) {
+      const preset = storage.resolveDrink(store, kind.slice(6));
+      if (!preset) return;
+      addDrinkVolume(preset, volumeMl, { drinkId: preset.id, ts });
+      return;
+    }
+    addWater(volumeMl, { ts });
+  }
+
   function openEditSheet(id) {
     const entry = store.entries.find((e) => e.id === id);
     if (!entry) return;
@@ -1468,6 +1866,12 @@
     $('#edit-amount').value =
       store.unit === 'oz' ? String(Math.round(mlToOz(entry.ml) * 10) / 10) : String(entry.ml);
     const d = new Date(entry.ts);
+    const key = dayKey(d);
+    const dateInput = $('#edit-date');
+    if (dateInput) {
+      dateInput.value = key;
+      dateInput.max = dayKey();
+    }
     $('#edit-time').value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     $('#edit-meta').textContent = entry.label ? entry.label : 'Plain water';
     openSheet('#edit-sheet');
@@ -1483,19 +1887,34 @@
     }
     const entry = store.entries.find((e) => e.id === id);
     if (!entry) return;
+    const oldKey = dayKey(new Date(entry.ts));
+    const dateVal = $('#edit-date')?.value;
+    if (dateVal && dateVal > dayKey()) {
+      showToast('Can’t move an entry into the future');
+      return;
+    }
     const time = $('#edit-time').value;
     let ts = entry.ts;
-    if (time && /^\d{2}:\d{2}$/.test(time)) {
+    if (dateVal && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+      ts = tsFromDayTime(dateVal, time);
+    } else if (time && /^\d{2}:\d{2}$/.test(time)) {
       const [hh, mm] = time.split(':').map(Number);
       const d = new Date(entry.ts);
       d.setHours(hh, mm, 0, 0);
       ts = d.getTime();
     }
     storage.updateEntry(store, id, { ml, ts });
+    const newKey = dayKey(new Date(ts));
+    if (newKey !== oldKey) {
+      calState.selectedKey = newKey;
+      const d = parseDayKey(newKey);
+      calState.year = d.getFullYear();
+      calState.month = d.getMonth();
+    }
     closeSheets();
     haptic('medium');
     render();
-    showToast('Entry updated');
+    showToast(newKey !== oldKey ? `Moved to ${formatDayLabel(parseDayKey(newKey))}` : 'Entry updated');
     processAchievements({ entryEdited: true });
   }
 
@@ -1649,6 +2068,7 @@
         render();
       });
     });
+    bindTabNav();
     $('#btn-open-insights')?.addEventListener('click', () => {
       setView('insights');
       render();
@@ -1844,6 +2264,9 @@
     };
     $('#log-list')?.addEventListener('click', onLogClick);
     $('#cal-day-list')?.addEventListener('click', onLogClick);
+    $('#cal-day-add')?.addEventListener('click', () => openDayAddSheet());
+    $('#day-add-kind')?.addEventListener('change', prefillDayAddAmount);
+    $('#day-add-form')?.addEventListener('submit', submitDayAdd);
     $('#edit-form')?.addEventListener('submit', saveEdit);
     $('#edit-delete')?.addEventListener('click', () => {
       if (!editingId) return;

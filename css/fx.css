@@ -792,6 +792,17 @@ body.has-photo-bg .tab-nav-material {
   background: color-mix(in srgb, rgba(8, 24, 34, 0.72) 70%, rgba(200, 236, 248, 0.16));
 }
 
+body.has-photo-bg .tab-indicator-glass {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.05) 36%,
+      transparent 68%
+    ),
+    color-mix(in srgb, var(--accent) 30%, rgba(8, 24, 34, 0.28));
+}
+
 .bg-photo-block {
   display: flex;
   flex-direction: column;
