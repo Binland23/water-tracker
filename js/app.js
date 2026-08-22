@@ -53,6 +53,7 @@
     moved: false,
     pointerId: null,
     startX: 0,
+    startView: 'today',
     lastX: 0,
     lastT: 0,
     vx: 0,
@@ -385,7 +386,8 @@
     const indicator = $('.tab-indicator');
     if (!glass || !indicator) return;
 
-    const DRAG_PX = 6;
+    const DRAG_PX = 14;
+    const FLICK_VX = 0.85;
 
     const xInGlass = (clientX) => clientX - glass.getBoundingClientRect().left;
 
@@ -433,12 +435,8 @@
       tabNav.lastT = performance.now();
       tabNav.vx = 0;
       tabNav.moved = false;
+      tabNav.startView = currentView;
       tabNav.lastCrossed = metrics.findIndex((m) => m.name === currentView);
-      try {
-        glass.setPointerCapture(e.pointerId);
-      } catch {
-        /* ignore */
-      }
     });
 
     glass.addEventListener('pointermove', (e) => {
@@ -460,6 +458,11 @@
         glass.classList.add('is-dragging-tabs');
         indicator.classList.add('is-dragging');
         indicator.classList.remove('is-settling', 'is-snapping');
+        try {
+          glass.setPointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
       }
 
       const pos = tabNavPositionAt(xInGlass(e.clientX), tabNavMetrics());
@@ -480,21 +483,40 @@
       } catch {
         /* ignore */
       }
+      const swallowClick = () => {
+        const swallow = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        };
+        glass.addEventListener('click', swallow, true);
+        setTimeout(() => glass.removeEventListener('click', swallow, true), 320);
+      };
+
       if (!didDrag) {
         tabNav.dragging = false;
+        const hit = document.elementFromPoint(e.clientX, e.clientY);
+        const btn = hit && hit.closest ? hit.closest('.tab-btn') : null;
+        if (btn && btn.dataset.nav) {
+          swallowClick();
+          haptic('light');
+          setView(btn.dataset.nav);
+          render();
+        }
         return;
       }
 
-      const swallow = (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-      };
-      glass.addEventListener('click', swallow, true);
-      setTimeout(() => glass.removeEventListener('click', swallow, true), 320);
+      swallowClick();
 
       const metrics = tabNavMetrics();
-      const f = tabIndexFromLeft(tabNav.left + vx * 220, metrics);
-      const idx = Math.round(clamp(f, 0, Math.max(metrics.length - 1, 0)));
+      const n = Math.max(metrics.length - 1, 0);
+      let idx = Math.round(clamp(tabIndexFromLeft(tabNav.targetLeft, metrics), 0, n));
+      const startIdx = Math.max(
+        0,
+        metrics.findIndex((m) => m.name === (tabNav.startView || currentView))
+      );
+      if (Math.abs(vx) > FLICK_VX && idx === startIdx) {
+        idx = clamp(startIdx + Math.sign(vx), 0, n);
+      }
       const next = (metrics[idx] && metrics[idx].name) || currentView;
 
       paintTabIndicator(tabNav.left, tabNav.width, { stretch: 1, shine: 30 });
