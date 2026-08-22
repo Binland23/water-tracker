@@ -47,6 +47,22 @@
   let currentView = 'today';
   let onboardStep = 0;
   let editingId = null;
+  const TAB_PILL_INSET = 3;
+  const tabNav = {
+    dragging: false,
+    moved: false,
+    pointerId: null,
+    startX: 0,
+    lastX: 0,
+    lastT: 0,
+    vx: 0,
+    left: 0,
+    width: 0,
+    targetLeft: 0,
+    targetWidth: 0,
+    raf: 0,
+    lastCrossed: -1,
+  };
 
   const calState = {
     year: new Date().getFullYear(),
@@ -254,25 +270,104 @@
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
+  function tabButtons() {
+    return $$('.tab-btn');
+  }
+
+  function tabNavMetrics() {
+    return tabButtons().map((btn) => ({
+      name: btn.dataset.nav,
+      btn,
+      left: btn.offsetLeft + TAB_PILL_INSET,
+      width: Math.max(0, btn.offsetWidth - TAB_PILL_INSET * 2),
+      center: btn.offsetLeft + btn.offsetWidth / 2,
+    }));
+  }
+
+  function tabNavPositionAt(xInGlass, metrics) {
+    if (!metrics.length) return { left: 0, width: 0, t: 0, f: 0 };
+    const first = metrics[0];
+    const last = metrics[metrics.length - 1];
+    const span = last.center - first.center;
+    let t = span ? (xInGlass - first.center) / span : 0;
+    if (t < 0) t *= 0.22;
+    else if (t > 1) t = 1 + (t - 1) * 0.22;
+    t = clamp(t, -0.07, 1.07);
+    return {
+      left: first.left + t * (last.left - first.left),
+      width: first.width + t * (last.width - first.width),
+      t,
+      f: t * Math.max(metrics.length - 1, 0),
+    };
+  }
+
+  function tabIndexFromLeft(left, metrics) {
+    if (!metrics.length) return 0;
+    const span = metrics[metrics.length - 1].left - metrics[0].left;
+    if (!span) return 0;
+    return ((left - metrics[0].left) / span) * (metrics.length - 1);
+  }
+
+  function readIndicatorPose() {
+    const indicator = $('.tab-indicator');
+    if (!indicator) return { left: tabNav.left, width: tabNav.width };
+    const computed = getComputedStyle(indicator);
+    const width = parseFloat(computed.width);
+    let left = tabNav.left;
+    const t = computed.transform;
+    if (t && t !== 'none') {
+      const parts = t.replace(/^matrix3d\(|^matrix\(|\)$/g, '').split(',').map(Number);
+      const tx = parts.length === 16 ? parts[12] : parts[4];
+      if (Number.isFinite(tx)) left = tx;
+    }
+    return {
+      left,
+      width: Number.isFinite(width) && width > 0 ? width : tabNav.width,
+    };
+  }
+
+  function paintTabIndicator(left, width, { stretch = 1, shine } = {}) {
+    const indicator = $('.tab-indicator');
+    if (!indicator) return;
+    const extra = Math.max(0, width * (stretch - 1));
+    indicator.style.width = `${Math.max(0, width + extra)}px`;
+    indicator.style.transform = `translate3d(${left - extra / 2}px, 0, 0)`;
+    indicator.style.setProperty('--blob-stretch', String(stretch));
+    if (typeof shine === 'number') indicator.style.setProperty('--blob-shine', `${shine}%`);
+    const trail = clamp(-((stretch - 1) * 30) * Math.sign(tabNav.vx || 0), -24, 24);
+    indicator.style.setProperty('--blob-trail', `${trail}px`);
+  }
+
+  function applyTabHeat(f) {
+    tabButtons().forEach((btn, i) => {
+      btn.style.setProperty('--tab-heat', clamp(1 - Math.abs(f - i) * 0.92, 0, 1).toFixed(3));
+    });
+  }
+
+  function clearTabHeat() {
+    tabButtons().forEach((btn) => btn.style.removeProperty('--tab-heat'));
+  }
+
   function updateTabIndicator({ animate = true } = {}) {
-    const glass = $('.tab-nav-glass');
+    if (tabNav.dragging) return;
     const indicator = $('.tab-indicator');
     const active = $('.tab-btn.is-active');
-    if (!glass || !indicator || !active) return;
+    if (!indicator || !active) return;
 
-    const insetX = 3;
-    const left = active.offsetLeft + insetX;
-    const width = Math.max(0, active.offsetWidth - insetX * 2);
+    const left = active.offsetLeft + TAB_PILL_INSET;
+    const width = Math.max(0, active.offsetWidth - TAB_PILL_INSET * 2);
+    tabNav.left = left;
+    tabNav.width = width;
+    tabNav.targetLeft = left;
+    tabNav.targetWidth = width;
     const shouldAnimate = animate && indicator.classList.contains('is-ready') && !prefersReducedMotion();
 
     if (!shouldAnimate) indicator.classList.add('is-snapping');
     else indicator.classList.remove('is-snapping');
 
-    indicator.style.width = `${width}px`;
-    indicator.style.transform = `translate3d(${left}px, 0, 0)`;
+    paintTabIndicator(left, width, { stretch: 1, shine: 30 });
 
     if (!indicator.classList.contains('is-ready')) {
-      // Place first without a fade-from-zero slide.
       void indicator.offsetWidth;
       indicator.classList.add('is-ready');
       indicator.classList.remove('is-snapping');
@@ -283,6 +378,152 @@
       void indicator.offsetWidth;
       indicator.classList.remove('is-snapping');
     }
+  }
+
+  function bindTabNav() {
+    const glass = $('.tab-nav-glass');
+    const indicator = $('.tab-indicator');
+    if (!glass || !indicator) return;
+
+    const DRAG_PX = 6;
+
+    const xInGlass = (clientX) => clientX - glass.getBoundingClientRect().left;
+
+    const stopLoop = () => {
+      if (!tabNav.raf) return;
+      cancelAnimationFrame(tabNav.raf);
+      tabNav.raf = 0;
+    };
+
+    const tick = () => {
+      tabNav.raf = 0;
+      if (!tabNav.dragging) return;
+      const follow = prefersReducedMotion() ? 1 : 0.26;
+      tabNav.left += (tabNav.targetLeft - tabNav.left) * follow;
+      tabNav.width += (tabNav.targetWidth - tabNav.width) * follow;
+      const stretch = prefersReducedMotion() ? 1 : 1 + Math.min(0.48, Math.abs(tabNav.vx) * 16 * 0.016);
+      paintTabIndicator(tabNav.left, tabNav.width, {
+        stretch,
+        shine: clamp(30 + tabNav.vx * 140, 12, 88),
+      });
+      const metrics = tabNavMetrics();
+      const f = tabIndexFromLeft(tabNav.left, metrics);
+      applyTabHeat(f);
+      const crossed = Math.round(clamp(f, 0, Math.max(metrics.length - 1, 0)));
+      if (metrics.length && crossed !== tabNav.lastCrossed) {
+        tabNav.lastCrossed = crossed;
+        haptic('light');
+      }
+      tabNav.vx *= 0.9;
+      tabNav.raf = requestAnimationFrame(tick);
+    };
+
+    const startLoop = () => {
+      if (!tabNav.raf) tabNav.raf = requestAnimationFrame(tick);
+    };
+
+    glass.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (tabNav.pointerId != null) return;
+      const metrics = tabNavMetrics();
+      if (!metrics.length) return;
+      tabNav.pointerId = e.pointerId;
+      tabNav.startX = e.clientX;
+      tabNav.lastX = e.clientX;
+      tabNav.lastT = performance.now();
+      tabNav.vx = 0;
+      tabNav.moved = false;
+      tabNav.lastCrossed = metrics.findIndex((m) => m.name === currentView);
+      try {
+        glass.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    });
+
+    glass.addEventListener('pointermove', (e) => {
+      if (tabNav.pointerId !== e.pointerId) return;
+      const now = performance.now();
+      const dt = Math.max(8, now - tabNav.lastT);
+      tabNav.vx = tabNav.vx * 0.5 + ((e.clientX - tabNav.lastX) / dt) * 0.5;
+      tabNav.lastX = e.clientX;
+      tabNav.lastT = now;
+
+      if (!tabNav.moved && Math.abs(e.clientX - tabNav.startX) < DRAG_PX) return;
+
+      if (!tabNav.moved) {
+        tabNav.moved = true;
+        tabNav.dragging = true;
+        const pose = readIndicatorPose();
+        tabNav.left = pose.left;
+        tabNav.width = pose.width;
+        glass.classList.add('is-dragging-tabs');
+        indicator.classList.add('is-dragging');
+        indicator.classList.remove('is-settling', 'is-snapping');
+      }
+
+      const pos = tabNavPositionAt(xInGlass(e.clientX), tabNavMetrics());
+      tabNav.targetLeft = pos.left;
+      tabNav.targetWidth = pos.width;
+      startLoop();
+    });
+
+    const finish = (e) => {
+      if (tabNav.pointerId !== e.pointerId) return;
+      const didDrag = tabNav.moved;
+      const vx = tabNav.vx;
+      tabNav.pointerId = null;
+      tabNav.moved = false;
+      stopLoop();
+      try {
+        if (glass.hasPointerCapture(e.pointerId)) glass.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      if (!didDrag) {
+        tabNav.dragging = false;
+        return;
+      }
+
+      const swallow = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+      };
+      glass.addEventListener('click', swallow, true);
+      setTimeout(() => glass.removeEventListener('click', swallow, true), 320);
+
+      const metrics = tabNavMetrics();
+      const f = tabIndexFromLeft(tabNav.left + vx * 220, metrics);
+      const idx = Math.round(clamp(f, 0, Math.max(metrics.length - 1, 0)));
+      const next = (metrics[idx] && metrics[idx].name) || currentView;
+
+      paintTabIndicator(tabNav.left, tabNav.width, { stretch: 1, shine: 30 });
+      void indicator.offsetWidth;
+      tabNav.dragging = false;
+      glass.classList.remove('is-dragging-tabs');
+      indicator.classList.remove('is-dragging');
+      indicator.classList.add('is-settling');
+      clearTabHeat();
+      haptic('light');
+      if (next !== currentView) {
+        setView(next);
+        render();
+      } else {
+        updateTabIndicator();
+      }
+    };
+
+    glass.addEventListener('pointerup', finish);
+    glass.addEventListener('pointercancel', finish);
+    glass.addEventListener('lostpointercapture', (e) => {
+      if (tabNav.pointerId === e.pointerId) finish(e);
+    });
+    indicator.addEventListener('transitionend', (e) => {
+      if (e.target !== indicator) return;
+      if (e.propertyName === 'transform' || e.propertyName === 'width') {
+        indicator.classList.remove('is-settling');
+      }
+    });
   }
 
   function setView(name, { persist = true } = {}) {
@@ -1649,6 +1890,7 @@
         render();
       });
     });
+    bindTabNav();
     $('#btn-open-insights')?.addEventListener('click', () => {
       setView('insights');
       render();
