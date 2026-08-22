@@ -398,7 +398,7 @@
     const tick = () => {
       tabNav.raf = 0;
       if (!tabNav.dragging) return;
-      const follow = prefersReducedMotion() ? 1 : 0.26;
+      const follow = prefersReducedMotion() ? 1 : 0.4;
       tabNav.left += (tabNav.targetLeft - tabNav.left) * follow;
       tabNav.width += (tabNav.targetWidth - tabNav.width) * follow;
       const stretch = prefersReducedMotion() ? 1 : 1 + Math.min(0.48, Math.abs(tabNav.vx) * 16 * 0.016);
