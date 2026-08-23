@@ -1381,6 +1381,7 @@ legend.field-label {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   cursor: grab;
+  overflow: hidden;
 }
 
 .tab-nav-glass.is-dragging-tabs {
@@ -1575,32 +1576,19 @@ body.is-onboarding .mascot {
   z-index: 1;
   width: 0;
   height: calc(100% - 10px);
-  border-radius: calc(22px / min(var(--blob-stretch, 1), 1.28));
+  border-radius: 22px;
   pointer-events: none;
-  transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0) scaleX(1);
+  transform-origin: center center;
   opacity: 0;
-  transition:
-    transform 0.48s var(--ease-spring),
-    width 0.48s cubic-bezier(0.22, 1.15, 0.36, 1),
-    opacity 0.22s var(--ease-out),
-    border-radius 0.28s var(--ease-out);
   will-change: transform, width;
+  /* JS spring owns the slide. CSS width+transform transitions were
+     interpolating independently and stretching the lens across two tabs. */
+  transition: opacity 0.22s var(--ease-out);
 }
 
 .tab-indicator.is-ready {
   opacity: 1;
-}
-
-.tab-indicator.is-snapping,
-.tab-indicator.is-dragging {
-  transition: none;
-}
-
-.tab-indicator.is-settling {
-  transition:
-    transform 0.66s cubic-bezier(0.22, 1.48, 0.32, 1),
-    width 0.66s cubic-bezier(0.22, 1.35, 0.36, 1),
-    border-radius 0.4s var(--ease-out);
 }
 
 .tab-indicator-glass {
