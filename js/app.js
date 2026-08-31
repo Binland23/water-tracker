@@ -241,7 +241,7 @@
     const backdrop = $('#sheet-backdrop');
     const DISMISS_PX = 96;
     const DISMISS_VEL = 0.85;
-    const IGNORE = 'input, select, textarea, button, label, [contenteditable="true"]';
+    const IGNORE = 'input, select, textarea, button, label, [contenteditable="true"], [data-bottle-handle]';
 
     $$('.sheet').forEach((sheet) => {
       let startY = 0;
@@ -1320,24 +1320,18 @@
 
   function renderBottles() {
     const bottles = store.bottles && store.bottles.length ? store.bottles : storage.defaultBottles();
-    const owala = getOwalaBottle();
     const owalaBtn = $('#btn-owala');
-    if (owalaBtn && owala) {
-      const amt = formatAmountWithUnit(Math.round(ozToMl(owala.oz)), store.unit);
-      const amtEl = owalaBtn.querySelector('[data-drink-amount]');
-      if (amtEl) amtEl.textContent = `${amt} water`;
-      owalaBtn.setAttribute('aria-label', `Add full ${owala.label}, ${amt} water`);
-    }
+    if (owalaBtn) owalaBtn.hidden = true;
 
     const row = $('#bottles-row');
     if (!row) return;
-    const extras = bottles.filter((b) => (storage.isOwalaBottle ? !storage.isOwalaBottle(b) : b.id !== 'owala'));
-    row.innerHTML = extras
+    row.innerHTML = bottles
       .map((b) => {
         const ml = Math.round(ozToMl(b.oz));
         const amt = formatAmountWithUnit(ml, store.unit);
+        const isOwala = storage.isOwalaBottle ? storage.isOwalaBottle(b) : b.id === 'owala';
         return `
-        <button type="button" class="bottle-btn" data-bottle="${escapeHtml(b.id)}" aria-label="Add full ${escapeHtml(b.label)}, ${amt} water">
+        <button type="button" class="bottle-btn${isOwala ? ' owala-btn' : ''}" data-bottle="${escapeHtml(b.id)}" aria-label="Add full ${escapeHtml(b.label)}, ${amt} water">
           <span class="owala-btn-mark" aria-hidden="true">
             <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
               <path d="M12 4h8l1 3v2c3 1 5 4 5 8v7a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4v-7c0-4 2-7 5-8V7l1-3z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
@@ -1378,21 +1372,49 @@
     const host = $('#settings-bottles');
     if (!host) return;
     const bottles = store.bottles || [];
+    const canReorder = bottles.length > 1;
     host.innerHTML = bottles
-      .map((b) => {
+      .map((b, i) => {
         const removable = b.id !== 'owala';
         const amt = formatAmountWithUnit(Math.round(ozToMl(b.oz)), store.unit);
         const highlight = highlightedBottleId && b.id === highlightedBottleId ? ' is-just-added' : '';
-        return `<div class="mini-row${highlight}" data-bottle-row="${escapeHtml(b.id)}">
+        const upOff = i === 0 ? ' disabled' : '';
+        const downOff = i === bottles.length - 1 ? ' disabled' : '';
+        return `<div class="mini-row${highlight}${canReorder ? ' is-reorderable' : ''}" data-bottle-row="${escapeHtml(b.id)}">
+          ${
+            canReorder
+              ? `<button type="button" class="bottle-handle" data-bottle-handle aria-label="Drag to reorder ${escapeHtml(b.label)}">
+            <svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true">
+              <circle cx="4" cy="3" r="1.5"/><circle cx="10" cy="3" r="1.5"/>
+              <circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/>
+              <circle cx="4" cy="15" r="1.5"/><circle cx="10" cy="15" r="1.5"/>
+            </svg>
+          </button>`
+              : ''
+          }
           <span class="mini-row-copy">
             <span class="mini-row-title">${escapeHtml(b.label)}</span>
             <span class="mini-row-sub">${amt} · 100% water</span>
           </span>
-          ${
-            removable
-              ? `<button type="button" class="link-btn" data-remove-bottle="${escapeHtml(b.id)}">Remove</button>`
-              : `<span class="mini-tag">Default</span>`
-          }
+          <span class="mini-row-actions">
+            ${
+              canReorder
+                ? `<span class="bottle-move">
+              <button type="button" class="bottle-move-btn" data-move-bottle="${escapeHtml(b.id)}" data-dir="-1" aria-label="Move ${escapeHtml(b.label)} up"${upOff}>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 8l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button type="button" class="bottle-move-btn" data-move-bottle="${escapeHtml(b.id)}" data-dir="1" aria-label="Move ${escapeHtml(b.label)} down"${downOff}>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 4l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </span>`
+                : ''
+            }
+            ${
+              removable
+                ? `<button type="button" class="link-btn" data-remove-bottle="${escapeHtml(b.id)}">Remove</button>`
+                : `<span class="mini-tag">Default</span>`
+            }
+          </span>
         </div>`;
       })
       .join('');
@@ -1503,6 +1525,124 @@
     render();
     showToast(`${result.bottle.label} ready`, { duration: 2600 });
     processAchievements({ bottleAdded: true });
+  }
+
+  function persistBottleDomOrder() {
+    const host = $('#settings-bottles');
+    if (!host) return false;
+    const ids = $$('[data-bottle-row]', host).map((el) => el.dataset.bottleRow).filter(Boolean);
+    if (ids.length < 2) return false;
+    return storage.reorderBottles(store, ids);
+  }
+
+  function bindBottleReorder() {
+    const host = $('#settings-bottles');
+    if (!host) return;
+    const sheet = $('#settings-sheet');
+    let row = null;
+    let startY = 0;
+    let dragging = false;
+    let pointerId = null;
+    let startOrder = '';
+
+    const clearDrag = () => {
+      if (row) {
+        row.classList.remove('is-dragging-row');
+        row.style.transform = '';
+        row.removeAttribute('aria-grabbed');
+      }
+      sheet?.classList.remove('is-reordering');
+      row = null;
+      dragging = false;
+      pointerId = null;
+      startOrder = '';
+    };
+
+    const shiftRow = (clientY) => {
+      if (!row) return;
+      let guard = 0;
+      while (guard++ < 20) {
+        const next = row.nextElementSibling;
+        const prev = row.previousElementSibling;
+        const mid = row.getBoundingClientRect().top + row.offsetHeight / 2;
+        if (next && next.matches('[data-bottle-row]')) {
+          const box = next.getBoundingClientRect();
+          if (mid > box.top + box.height / 2) {
+            next.after(row);
+            startY = clientY;
+            row.style.transform = '';
+            haptic('light');
+            continue;
+          }
+        }
+        if (prev && prev.matches('[data-bottle-row]')) {
+          const box = prev.getBoundingClientRect();
+          if (mid < box.top + box.height / 2) {
+            prev.before(row);
+            startY = clientY;
+            row.style.transform = '';
+            haptic('light');
+            continue;
+          }
+        }
+        break;
+      }
+    };
+
+    host.addEventListener('pointerdown', (e) => {
+      const handle = e.target.closest('[data-bottle-handle]');
+      if (!handle || (e.button != null && e.button !== 0)) return;
+      const target = handle.closest('[data-bottle-row]');
+      if (!target) return;
+      row = target;
+      startY = e.clientY;
+      dragging = false;
+      pointerId = e.pointerId;
+      startOrder = $$('[data-bottle-row]', host).map((el) => el.dataset.bottleRow).join('|');
+      e.preventDefault();
+    });
+
+    host.addEventListener('pointermove', (e) => {
+      if (!row || e.pointerId !== pointerId) return;
+      const dy = e.clientY - startY;
+      if (!dragging) {
+        if (Math.abs(dy) < 8) return;
+        dragging = true;
+        row.classList.add('is-dragging-row');
+        row.setAttribute('aria-grabbed', 'true');
+        sheet?.classList.add('is-reordering');
+        try {
+          row.setPointerCapture(pointerId);
+        } catch {
+          /* ignore */
+        }
+        haptic('light');
+      }
+      row.style.transform = `translateY(${e.clientY - startY}px)`;
+      shiftRow(e.clientY);
+    });
+
+    const endDrag = (e) => {
+      if (!row || (e.pointerId != null && e.pointerId !== pointerId)) return;
+      const didDrag = dragging;
+      const order = $$('[data-bottle-row]', host).map((el) => el.dataset.bottleRow).join('|');
+      const changed = didDrag && order !== startOrder;
+      clearDrag();
+      if (!didDrag) return;
+      const stopClick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        host.removeEventListener('click', stopClick, true);
+      };
+      host.addEventListener('click', stopClick, true);
+      if (changed) {
+        persistBottleDomOrder();
+        render();
+      }
+    };
+
+    host.addEventListener('pointerup', endDrag);
+    host.addEventListener('pointercancel', endDrag);
   }
 
   function dayFillClass(total, goal) {
@@ -2409,6 +2549,16 @@
       haptic('light');
     });
     $('#settings-bottles')?.addEventListener('click', (e) => {
+      const move = e.target.closest('[data-move-bottle]');
+      if (move) {
+        if (move.disabled) return;
+        const id = move.dataset.moveBottle;
+        const dir = Number(move.dataset.dir);
+        if (!storage.moveBottle(store, id, dir)) return;
+        haptic('light');
+        render();
+        return;
+      }
       const btn = e.target.closest('[data-remove-bottle]');
       if (!btn) return;
       const id = btn.dataset.removeBottle;
@@ -2418,6 +2568,7 @@
       render();
       showToast(`${bottle?.label || 'Bottle'} removed`);
     });
+    bindBottleReorder();
 
     $('#btn-settings')?.addEventListener('click', () => {
       render();
