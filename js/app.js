@@ -2402,7 +2402,7 @@
       const input = $('#bottle-size');
       if (input) {
         input.value = chip.dataset.bottleSize;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
+        updateBottlePreview();
       }
       haptic('light');
     });

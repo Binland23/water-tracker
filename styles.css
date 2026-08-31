@@ -1853,9 +1853,9 @@ html[data-theme="light"] .tab-indicator-glass {
 }
 
 .sheet.is-open.is-behind {
-  transform: translate(-50%, 12px) scale(0.96);
+  transform: translate(-50%, 18px) scale(0.94);
   pointer-events: none;
-  filter: brightness(0.72);
+  filter: brightness(0.52);
   z-index: 68;
 }
 
@@ -2367,6 +2367,18 @@ html[data-theme="light"] .tab-indicator-glass {
   opacity: 1;
   transform: translate(-50%, 0);
   pointer-events: auto;
+}
+
+body.sheet-open .toast,
+body.sheet-open .undo-bar {
+  bottom: auto;
+  top: calc(12px + var(--safe-top));
+  transform: translate(-50%, -12px);
+}
+
+body.sheet-open .toast.is-visible,
+body.sheet-open .undo-bar.is-visible {
+  transform: translate(-50%, 0);
 }
 
 .undo-bar {
