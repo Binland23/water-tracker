@@ -2372,8 +2372,8 @@ html[data-theme="light"] .tab-indicator-glass {
 body.sheet-open .toast,
 body.sheet-open .undo-bar {
   bottom: auto;
-  top: calc(12px + var(--safe-top));
-  transform: translate(-50%, -12px);
+  top: 96px;
+  transform: translate(-50%, -10px);
 }
 
 body.sheet-open .toast.is-visible,

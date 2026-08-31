@@ -1489,17 +1489,19 @@
     if (result.status === 'duplicate') {
       highlightedBottleId = result.bottle.id;
       render();
-      showToast(`You already have ${result.bottle.label}`);
+      showToast(`You already have ${result.bottle.label}`, { duration: 2600 });
       return;
     }
     if (result.status === 'updated') {
       render();
-      showToast(`Owala updated to ${formatAmountWithUnit(Math.round(ozToMl(result.bottle.oz)), store.unit)}`);
+      showToast(`Owala updated to ${formatAmountWithUnit(Math.round(ozToMl(result.bottle.oz)), store.unit)}`, {
+        duration: 2600,
+      });
       return;
     }
     highlightedBottleId = result.bottle.id;
     render();
-    showToast(`${result.bottle.label} ready`);
+    showToast(`${result.bottle.label} ready`, { duration: 2600 });
     processAchievements({ bottleAdded: true });
   }
 
