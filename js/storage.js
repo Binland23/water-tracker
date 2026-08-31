@@ -93,16 +93,24 @@
     const list = Array.isArray(raw) ? raw.map(normalizeBottle).filter(Boolean) : [];
     const source = list.find((b) => b.id === 'owala') || list.find(isOwalaBottle) || defaultBottles()[0];
     const owala = { id: 'owala', label: 'Owala', oz: source.oz || 24, featured: true };
-    const extras = [];
+    const out = [];
     const seen = new Set();
+    let placedOwala = false;
     for (const b of list) {
-      if (isOwalaBottle(b)) continue;
+      if (isOwalaBottle(b)) {
+        if (!placedOwala) {
+          out.push(owala);
+          placedOwala = true;
+        }
+        continue;
+      }
       const key = `${String(b.label).trim().toLowerCase()}|${b.oz}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      extras.push(b);
+      out.push(b);
     }
-    return [owala, ...extras];
+    if (!placedOwala) out.unshift(owala);
+    return out;
   }
 
   function normalizeCustomDrink(d) {
@@ -523,22 +531,38 @@
     return true;
   }
 
+  const MAX_CUSTOM_BOTTLES = 12;
+
   function addBottle(store, { label, oz }) {
-    const bottle = normalizeBottle({ id: uid(), label, oz, featured: true });
-    if (!bottle) return null;
+    if (!Array.isArray(store.bottles) || !store.bottles.length) {
+      store.bottles = defaultBottles();
+    }
+    const roundedOz = Math.round(Number(oz) * 10) / 10;
+    const bottle = normalizeBottle({ id: uid(), label, oz: roundedOz, featured: true });
+    if (!bottle) return { ok: false, reason: 'invalid' };
     if (isOwalaBottle(bottle)) {
-      const existing = (store.bottles || []).find((b) => b.id === 'owala') || defaultBottles()[0];
+      const idx = store.bottles.findIndex((b) => b.id === 'owala' || isOwalaBottle(b));
+      const existing = idx >= 0 ? store.bottles[idx] : defaultBottles()[0];
       existing.id = 'owala';
       existing.label = 'Owala';
       existing.oz = bottle.oz;
       existing.featured = true;
-      store.bottles = normalizeBottles([existing, ...(store.bottles || [])]);
+      if (idx >= 0) store.bottles[idx] = existing;
+      else store.bottles.unshift(existing);
+      store.bottles = normalizeBottles(store.bottles);
       save(store);
-      return existing;
+      return { ok: true, bottle: existing, status: 'updated' };
     }
+    const extras = store.bottles.filter((b) => !isOwalaBottle(b));
+    if (extras.length >= MAX_CUSTOM_BOTTLES) return { ok: false, reason: 'full' };
+    const nameKey = bottle.label.trim().toLowerCase();
+    const dup = extras.find(
+      (b) => String(b.label).trim().toLowerCase() === nameKey && Number(b.oz) === Number(bottle.oz)
+    );
+    if (dup) return { ok: true, bottle: dup, status: 'duplicate' };
     store.bottles.push(bottle);
     save(store);
-    return bottle;
+    return { ok: true, bottle, status: 'created' };
   }
 
   function removeBottle(store, id) {
@@ -546,6 +570,40 @@
     const before = store.bottles.length;
     store.bottles = store.bottles.filter((b) => b.id !== id);
     if (store.bottles.length === before) return false;
+    save(store);
+    return true;
+  }
+
+  function moveBottle(store, id, delta) {
+    if (!Array.isArray(store.bottles)) return false;
+    const from = store.bottles.findIndex((b) => b.id === id);
+    if (from < 0) return false;
+    const to = from + Number(delta);
+    if (to < 0 || to >= store.bottles.length) return false;
+    const next = store.bottles.slice();
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    store.bottles = normalizeBottles(next);
+    save(store);
+    return true;
+  }
+
+  function reorderBottles(store, ids) {
+    if (!Array.isArray(store.bottles) || !Array.isArray(ids) || !ids.length) return false;
+    const byId = new Map(store.bottles.map((b) => [b.id, b]));
+    const next = [];
+    const seen = new Set();
+    for (const id of ids) {
+      const bottle = byId.get(String(id));
+      if (!bottle || seen.has(bottle.id)) continue;
+      seen.add(bottle.id);
+      next.push(bottle);
+    }
+    for (const bottle of store.bottles) {
+      if (!seen.has(bottle.id)) next.push(bottle);
+    }
+    if (!next.length) return false;
+    store.bottles = normalizeBottles(next);
     save(store);
     return true;
   }
@@ -774,6 +832,8 @@
     recordPaceWin,
     addBottle,
     removeBottle,
+    moveBottle,
+    reorderBottles,
     addCustomDrink,
     removeCustomDrink,
     allDrinkPresets,
