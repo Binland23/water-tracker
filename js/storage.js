@@ -523,22 +523,35 @@
     return true;
   }
 
+  const MAX_CUSTOM_BOTTLES = 12;
+
   function addBottle(store, { label, oz }) {
-    const bottle = normalizeBottle({ id: uid(), label, oz, featured: true });
-    if (!bottle) return null;
+    if (!Array.isArray(store.bottles) || !store.bottles.length) {
+      store.bottles = defaultBottles();
+    }
+    const roundedOz = Math.round(Number(oz) * 10) / 10;
+    const bottle = normalizeBottle({ id: uid(), label, oz: roundedOz, featured: true });
+    if (!bottle) return { ok: false, reason: 'invalid' };
     if (isOwalaBottle(bottle)) {
-      const existing = (store.bottles || []).find((b) => b.id === 'owala') || defaultBottles()[0];
+      const existing = store.bottles.find((b) => b.id === 'owala') || defaultBottles()[0];
       existing.id = 'owala';
       existing.label = 'Owala';
       existing.oz = bottle.oz;
       existing.featured = true;
-      store.bottles = normalizeBottles([existing, ...(store.bottles || [])]);
+      store.bottles = normalizeBottles([existing, ...store.bottles]);
       save(store);
-      return existing;
+      return { ok: true, bottle: existing, status: 'updated' };
     }
+    const extras = store.bottles.filter((b) => !isOwalaBottle(b));
+    if (extras.length >= MAX_CUSTOM_BOTTLES) return { ok: false, reason: 'full' };
+    const nameKey = bottle.label.trim().toLowerCase();
+    const dup = extras.find(
+      (b) => String(b.label).trim().toLowerCase() === nameKey && Number(b.oz) === Number(bottle.oz)
+    );
+    if (dup) return { ok: true, bottle: dup, status: 'duplicate' };
     store.bottles.push(bottle);
     save(store);
-    return bottle;
+    return { ok: true, bottle, status: 'created' };
   }
 
   function removeBottle(store, id) {

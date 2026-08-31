@@ -22,8 +22,8 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=40" />
-    <link rel="stylesheet" href="css/fx.css?v=40" />
+    <link rel="stylesheet" href="styles.css?v=41" />
+    <link rel="stylesheet" href="css/fx.css?v=41" />
     <script>
       (function () {
         var standalone =
@@ -567,29 +567,6 @@
       </form>
     </div>
 
-    <!-- Add bottle -->
-    <div id="bottle-sheet" class="sheet" role="dialog" aria-labelledby="bottle-title" hidden>
-      <div class="sheet-handle" aria-hidden="true"></div>
-      <div class="sheet-header">
-        <h2 id="bottle-title">Add a bottle</h2>
-        <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-        </button>
-      </div>
-      <form id="bottle-form" class="sheet-body">
-        <label class="field">
-          <span class="field-label">Name</span>
-          <input id="bottle-name" class="field-input" type="text" maxlength="28" placeholder="Hydro Flask" required />
-        </label>
-        <label class="field">
-          <span class="field-label">Size (fl oz)</span>
-          <input id="bottle-oz" class="field-input" type="number" inputmode="decimal" min="1" step="any" placeholder="32" required />
-        </label>
-        <p class="field-hint">One tap on Today logs a full bottle as 100% water.</p>
-        <button type="submit" class="primary-btn">Save bottle</button>
-      </form>
-    </div>
-
     <!-- Add custom drink -->
     <div id="new-drink-sheet" class="sheet" role="dialog" aria-labelledby="new-drink-title" hidden>
       <div class="sheet-handle" aria-hidden="true"></div>
@@ -802,6 +779,46 @@
       </div>
     </div>
 
+    <!-- Add bottle — nested over Settings so it stacks on top -->
+    <div id="bottle-sheet" class="sheet" role="dialog" aria-labelledby="bottle-title" hidden>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-header">
+        <h2 id="bottle-title">Add a bottle</h2>
+        <button type="button" class="icon-btn" data-close-sheet aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+      <form id="bottle-form" class="sheet-body" autocomplete="off">
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input id="bottle-name" class="field-input" type="text" maxlength="28" placeholder="Hydro Flask" required autocomplete="off" enterkeyhint="next" />
+        </label>
+        <label class="field">
+          <span class="field-label">Size (<span id="bottle-size-unit">fl oz</span>)</span>
+          <input id="bottle-size" class="field-input" type="number" inputmode="decimal" min="1" step="any" placeholder="32" required />
+        </label>
+        <div id="bottle-size-chips" class="size-chips" role="group" aria-label="Common sizes"></div>
+        <div id="bottle-preview" class="bottle-preview" hidden>
+          <p class="bottle-preview-label">On Today</p>
+          <div class="bottle-btn bottle-btn-preview" aria-hidden="true">
+            <span class="owala-btn-mark">
+              <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                <path d="M12 4h8l1 3v2c3 1 5 4 5 8v7a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4v-7c0-4 2-7 5-8V7l1-3z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
+                <path d="M11 14h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="owala-btn-text">
+              <span class="owala-btn-title" id="bottle-preview-name">New bottle</span>
+              <span class="owala-btn-sub">Full bottle · <span id="bottle-preview-amt">32 oz water</span></span>
+            </span>
+            <span class="owala-btn-plus">+</span>
+          </div>
+        </div>
+        <p class="field-hint">One tap on Today logs a full bottle as 100% water.</p>
+        <button type="submit" class="primary-btn">Save bottle</button>
+      </form>
+    </div>
+
     <!-- Onboarding -->
     <div id="onboard" class="onboard-overlay" hidden>
       <div class="onboard-card">
@@ -957,16 +974,16 @@
       <div id="dew-fx" class="dew-fx" aria-hidden="true"></div>
     </div>
 
-    <script src="js/utils.js?v=40"></script>
-    <script src="js/storage.js?v=40"></script>
-    <script src="js/haptics.js?v=40"></script>
-    <script src="js/sound.js?v=40"></script>
-    <script src="js/reminders.js?v=40"></script>
-    <script src="js/achievements.js?v=40"></script>
-    <script src="js/mascot.js?v=40"></script>
-    <script src="js/bg-photo.js?v=40"></script>
-    <script src="js/celebrations.js?v=40"></script>
-    <script src="js/app.js?v=40"></script>
+    <script src="js/utils.js?v=41"></script>
+    <script src="js/storage.js?v=41"></script>
+    <script src="js/haptics.js?v=41"></script>
+    <script src="js/sound.js?v=41"></script>
+    <script src="js/reminders.js?v=41"></script>
+    <script src="js/achievements.js?v=41"></script>
+    <script src="js/mascot.js?v=41"></script>
+    <script src="js/bg-photo.js?v=41"></script>
+    <script src="js/celebrations.js?v=41"></script>
+    <script src="js/app.js?v=41"></script>
     <script>
       if ('serviceWorker' in navigator && location.protocol !== 'file:') {
         window.addEventListener('load', () => {

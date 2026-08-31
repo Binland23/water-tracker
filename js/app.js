@@ -77,6 +77,11 @@
     selectedKey: dayKey(),
   };
 
+  const sheetStack = [];
+  let highlightedBottleId = null;
+  const BOTTLE_PRESETS_OZ = [12, 16, 20, 24, 32, 40];
+  const BOTTLE_PRESETS_ML = [350, 500, 600, 750, 1000];
+
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -139,12 +144,64 @@
     }, 280);
   }
 
-  function openSheet(id) {
+  function resetSheetEl(sheet) {
+    sheet.classList.remove('is-open', 'is-dragging', 'is-nested', 'is-behind');
+    sheet.style.transform = '';
+    sheet.removeAttribute('aria-modal');
+    sheet.removeAttribute('inert');
+    sheet.removeAttribute('aria-hidden');
+  }
+
+  function dismissSheetEl(sheet) {
+    resetSheetEl(sheet);
+    setTimeout(() => {
+      if (!sheet.classList.contains('is-open')) sheet.hidden = true;
+    }, 280);
+  }
+
+  function finishCloseBackdrop() {
+    const backdrop = $('#sheet-backdrop');
+    if (backdrop) {
+      backdrop.classList.remove('is-open');
+      backdrop.style.opacity = '';
+      setTimeout(() => {
+        if (!backdrop.classList.contains('is-open')) backdrop.hidden = true;
+      }, 280);
+    }
+    document.body.classList.remove('sheet-open');
+    activeDrinkId = null;
+    editingId = null;
+  }
+
+  function openSheet(id, { stacked = false } = {}) {
     const sheet = $(id);
     const backdrop = $('#sheet-backdrop');
     if (!sheet || !backdrop) return;
+
+    if (!stacked) {
+      $$('.sheet').forEach((s) => {
+        if (s === sheet) return;
+        resetSheetEl(s);
+        s.hidden = true;
+      });
+      sheetStack.length = 0;
+    } else {
+      const parent = sheetStack[sheetStack.length - 1];
+      if (parent) {
+        parent.classList.add('is-behind');
+        parent.setAttribute('inert', '');
+        parent.setAttribute('aria-hidden', 'true');
+        parent.removeAttribute('aria-modal');
+      }
+      sheet.classList.add('is-nested');
+    }
+
     sheet.hidden = false;
+    sheet.setAttribute('aria-modal', 'true');
+    sheet.removeAttribute('aria-hidden');
+    sheet.removeAttribute('inert');
     backdrop.hidden = false;
+    sheetStack.push(sheet);
     requestAnimationFrame(() => {
       sheet.classList.add('is-open');
       backdrop.classList.add('is-open');
@@ -154,23 +211,30 @@
     haptic('light');
   }
 
+  function closeTopSheet() {
+    const sheet = sheetStack.pop();
+    if (!sheet) {
+      closeSheets();
+      return;
+    }
+    dismissSheetEl(sheet);
+    const prev = sheetStack[sheetStack.length - 1];
+    if (prev) {
+      prev.classList.remove('is-behind');
+      prev.removeAttribute('inert');
+      prev.removeAttribute('aria-hidden');
+      prev.setAttribute('aria-modal', 'true');
+      const backdrop = $('#sheet-backdrop');
+      if (backdrop) backdrop.style.opacity = '';
+      return;
+    }
+    finishCloseBackdrop();
+  }
+
   function closeSheets() {
-    $$('.sheet').forEach((s) => {
-      s.classList.remove('is-open', 'is-dragging');
-      s.style.transform = '';
-      setTimeout(() => {
-        if (!s.classList.contains('is-open')) s.hidden = true;
-      }, 280);
-    });
-    const backdrop = $('#sheet-backdrop');
-    backdrop.classList.remove('is-open');
-    backdrop.style.opacity = '';
-    setTimeout(() => {
-      if (!backdrop.classList.contains('is-open')) backdrop.hidden = true;
-    }, 280);
-    document.body.classList.remove('sheet-open');
-    activeDrinkId = null;
-    editingId = null;
+    sheetStack.length = 0;
+    $$('.sheet').forEach((s) => dismissSheetEl(s));
+    finishCloseBackdrop();
   }
 
   function bindSheetDismiss() {
@@ -196,7 +260,7 @@
       };
 
       const canStart = (e) => {
-        if (!sheet.classList.contains('is-open')) return false;
+        if (!sheet.classList.contains('is-open') || sheet.classList.contains('is-behind')) return false;
         if (e.button != null && e.button !== 0) return false;
         const t = e.target;
         if (t.closest(IGNORE)) return false;
@@ -262,7 +326,7 @@
         if (!dragged) return;
         if (dy > DISMISS_PX || (vy > DISMISS_VEL && dy > 36)) {
           haptic('light');
-          closeSheets();
+          closeTopSheet();
           return;
         }
         resetVisual();
@@ -1317,8 +1381,13 @@
     host.innerHTML = bottles
       .map((b) => {
         const removable = b.id !== 'owala';
-        return `<div class="mini-row">
-          <span>${escapeHtml(b.label)} · ${b.oz} oz</span>
+        const amt = formatAmountWithUnit(Math.round(ozToMl(b.oz)), store.unit);
+        const highlight = highlightedBottleId && b.id === highlightedBottleId ? ' is-just-added' : '';
+        return `<div class="mini-row${highlight}" data-bottle-row="${escapeHtml(b.id)}">
+          <span class="mini-row-copy">
+            <span class="mini-row-title">${escapeHtml(b.label)}</span>
+            <span class="mini-row-sub">${amt} · 100% water</span>
+          </span>
           ${
             removable
               ? `<button type="button" class="link-btn" data-remove-bottle="${escapeHtml(b.id)}">Remove</button>`
@@ -1327,6 +1396,111 @@
         </div>`;
       })
       .join('');
+    const addBtn = $('#btn-add-bottle');
+    if (addBtn) {
+      const extras = bottles.filter((b) => b.id !== 'owala');
+      const full = extras.length >= 12;
+      addBtn.disabled = full;
+      addBtn.textContent = full ? 'Bottle limit reached' : 'Add bottle';
+    }
+    if (highlightedBottleId) {
+      const row = host.querySelector('[data-bottle-row="' + highlightedBottleId + '"]');
+      if (row) requestAnimationFrame(() => row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+      window.setTimeout(() => {
+        highlightedBottleId = null;
+      }, 1600);
+    }
+  }
+
+  function bottleSizePresets() {
+    return store.unit === 'ml' ? BOTTLE_PRESETS_ML : BOTTLE_PRESETS_OZ;
+  }
+
+  function paintBottleSheet() {
+    const unitEl = $('#bottle-size-unit');
+    if (unitEl) unitEl.textContent = store.unit === 'ml' ? 'ml' : 'fl oz';
+    const sizeInput = $('#bottle-size');
+    if (sizeInput) {
+      sizeInput.placeholder = store.unit === 'ml' ? '750' : '32';
+      sizeInput.value = '';
+    }
+    const nameInput = $('#bottle-name');
+    if (nameInput) nameInput.value = '';
+    const chips = $('#bottle-size-chips');
+    if (chips) {
+      chips.innerHTML = bottleSizePresets()
+        .map((n) => `<button type="button" class="size-chip" data-bottle-size="${n}">${n}</button>`)
+        .join('');
+    }
+    updateBottlePreview();
+  }
+
+  function updateBottlePreview() {
+    const wrap = $('#bottle-preview');
+    const nameEl = $('#bottle-preview-name');
+    const amtEl = $('#bottle-preview-amt');
+    const name = ($('#bottle-name')?.value || '').trim() || 'New bottle';
+    const raw = Number($('#bottle-size')?.value);
+    const valid = Number.isFinite(raw) && raw > 0;
+    $$('#bottle-size-chips .size-chip').forEach((chip) => {
+      chip.classList.toggle('is-on', valid && Number(chip.dataset.bottleSize) === raw);
+    });
+    if (!wrap || !nameEl || !amtEl) return;
+    nameEl.textContent = name;
+    if (!valid) {
+      wrap.hidden = true;
+      return;
+    }
+    const ml = toMl(raw, store.unit);
+    amtEl.textContent = `${formatAmountWithUnit(ml, store.unit)} water`;
+    wrap.hidden = false;
+  }
+
+  function openBottleSheet() {
+    paintBottleSheet();
+    openSheet('#bottle-sheet', { stacked: true });
+    window.setTimeout(() => {
+      if ($('#bottle-sheet')?.classList.contains('is-open')) $('#bottle-name')?.focus();
+    }, 320);
+  }
+
+  function submitBottleForm(e) {
+    e.preventDefault();
+    const label = ($('#bottle-name')?.value || '').trim();
+    const raw = Number($('#bottle-size')?.value);
+    const ml = toMl(raw, store.unit);
+    if (!label) {
+      showToast('Give the bottle a name');
+      $('#bottle-name')?.focus();
+      return;
+    }
+    if (!ml) {
+      showToast(`Enter a size in ${store.unit === 'ml' ? 'ml' : 'oz'}`);
+      $('#bottle-size')?.focus();
+      return;
+    }
+    const oz = Math.round(mlToOz(ml) * 10) / 10;
+    const result = storage.addBottle(store, { label, oz });
+    if (!result || !result.ok) {
+      showToast(result?.reason === 'full' ? "That's 12 bottles — remove one first" : 'Check the bottle details');
+      return;
+    }
+    closeTopSheet();
+    if (result.status === 'duplicate') {
+      highlightedBottleId = result.bottle.id;
+      render();
+      showToast(`You already have ${result.bottle.label}`);
+      return;
+    }
+    if (result.status === 'updated') {
+      render();
+      showToast(`Owala updated to ${formatAmountWithUnit(Math.round(ozToMl(result.bottle.oz)), store.unit)}`);
+      return;
+    }
+    highlightedBottleId = result.bottle.id;
+    render();
+    showToast(`${result.bottle.label} ready`);
+    processAchievements({ bottleAdded: true });
   }
 
   function dayFillClass(total, goal) {
@@ -2214,24 +2388,33 @@
       processAchievements({ drinkAdded: true });
     });
 
-    $('#btn-add-bottle')?.addEventListener('click', () => openSheet('#bottle-sheet'));
-    $('#bottle-form')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const bottle = storage.addBottle(store, { label: $('#bottle-name').value, oz: Number($('#bottle-oz').value) });
-      if (!bottle) {
-        showToast('Check the bottle details');
-        return;
+    $('#btn-add-bottle')?.addEventListener('click', openBottleSheet);
+    $('#bottle-form')?.addEventListener('submit', submitBottleForm);
+    $('#bottle-form')?.addEventListener('input', updateBottlePreview);
+    $('#bottle-form')?.addEventListener('focusin', (e) => {
+      const field = e.target.closest('.field, .primary-btn');
+      if (!field) return;
+      window.setTimeout(() => field.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
+    });
+    $('#bottle-size-chips')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-bottle-size]');
+      if (!chip) return;
+      const input = $('#bottle-size');
+      if (input) {
+        input.value = chip.dataset.bottleSize;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
       }
-      closeSheets();
-      render();
-      showToast(`${bottle.label} ready`);
-      processAchievements({ bottleAdded: true });
+      haptic('light');
     });
     $('#settings-bottles')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-remove-bottle]');
       if (!btn) return;
-      storage.removeBottle(store, btn.dataset.removeBottle);
+      const id = btn.dataset.removeBottle;
+      const bottle = (store.bottles || []).find((b) => b.id === id);
+      if (!storage.removeBottle(store, id)) return;
+      haptic('light');
       render();
+      showToast(`${bottle?.label || 'Bottle'} removed`);
     });
 
     $('#btn-settings')?.addEventListener('click', () => {
@@ -2317,8 +2500,8 @@
       deleteEntry(id);
     });
 
-    $('#sheet-backdrop')?.addEventListener('click', closeSheets);
-    $$('[data-close-sheet]').forEach((b) => b.addEventListener('click', closeSheets));
+    $('#sheet-backdrop')?.addEventListener('click', closeTopSheet);
+    $$('[data-close-sheet]').forEach((b) => b.addEventListener('click', closeTopSheet));
     bindSheetDismiss();
 
     $('#undo-btn')?.addEventListener('click', () => {
@@ -2501,7 +2684,7 @@
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeSheets();
+      if (e.key === 'Escape') closeTopSheet();
     });
 
     lockPortraitOrientation();
