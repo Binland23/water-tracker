@@ -622,11 +622,11 @@
    * @param {object} storage WaterStorage API
    */
   function buildStats(store, storage) {
-    const goal = store.goalMl > 0 ? store.goalMl : 2000;
     const today = dayKey();
     const entries = store.entries || [];
     const todayEntries = storage.entriesForDay(store, today);
     const todayTotal = storage.totalForDay(store, today);
+    const goal = storage.goalForDay(store, today);
     const streak = storage.currentStreak(store, { requireToday: false });
     const streakToday = storage.currentStreak(store, { requireToday: true });
     const longest = storage.longestStreak(store);
@@ -680,7 +680,7 @@
     y.setDate(y.getDate() - 1);
     const yesterdayKey = dayKey(y);
     const yesterdayMet = storage.dayMetGoal(store, yesterdayKey, totals.get(yesterdayKey) || 0);
-    const todayMet = todayTotal >= goal && todayTotal > 0;
+    const todayMet = storage.dayMetGoal(store, today, todayTotal);
 
     // Weekend warrior: Sat+Sun of current or most recent weekend
     let weekendWarrior = false;

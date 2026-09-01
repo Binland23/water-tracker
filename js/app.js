@@ -16,6 +16,7 @@
     formatMonthYear,
     formatTime,
     goalFromProfile,
+    MAX_GOAL_ML,
     hydrationPercent,
     electrolytesSticksClamp,
     electrolytesWaterMl,
@@ -806,8 +807,8 @@
   }
 
   function mascotContext(extra = {}) {
-    const goal = store.goalMl;
     const total = storage.totalForDay(store);
+    const goal = storage.goalForDay(store, dayKey());
     const entries = storage.entriesForDay(store);
     const reached = total >= goal && goal > 0 && total > 0;
     const elyToday = entries.some((e) => typeof e.electrolytes === 'number' && e.electrolytes >= 1);
@@ -1262,8 +1263,8 @@
     const el = typeof target === 'string' ? $(target) : target;
     if (!el) return;
     const unit = store.unit;
-    const goal = store.goalMl;
     const today = dayKey();
+    const goal = storage.goalForDay(store, today);
     const week = storage.weekTotals(store, 7);
     const maxBar = Math.max(goal, ...week.map((d) => d.total), 1);
     el.innerHTML = '';
@@ -1678,6 +1679,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       const dayGoal = storage.goalForDay(store, cell.key);
+      const reached = cell.total > 0 && cell.total >= dayGoal && dayGoal > 0;
       btn.className = `cal-cell ${dayFillClass(cell.total, dayGoal)}`;
       if (cell.key === today) btn.classList.add('is-today');
       if (cell.key === selectedKey) btn.classList.add('is-selected');
@@ -1687,11 +1689,12 @@
       }
       btn.dataset.dayKey = cell.key;
       const pct = dayGoal > 0 ? Math.min(100, Math.round((cell.total / dayGoal) * 100)) : 0;
+      const fillPct = reached ? 100 : pct;
       btn.setAttribute(
         'aria-label',
         `${formatDayLabel(cell.date)}: ${formatAmountWithUnit(cell.total, store.unit)}${cell.total > 0 ? ` (${pct}% of goal)` : ''}`
       );
-      btn.innerHTML = `<span class="cal-day-num">${cell.day}</span><span class="cal-fill" style="--day-pct:${clamp(pct, 0, 100)}"></span>`;
+      btn.innerHTML = `<span class="cal-day-num">${cell.day}</span><span class="cal-fill" style="--day-pct:${fillPct};height:${fillPct}%"></span>`;
       grid.appendChild(btn);
     }
     renderCalDayPanel();
@@ -1710,9 +1713,10 @@
     const pct = goal > 0 ? Math.round((total / goal) * 100) : 0;
     $('#cal-day-title').textContent = formatDayLabel(date);
     const summary = $('#cal-day-summary');
-    if (total === 0) summary.textContent = `0 ${unit} · 0% of ${formatAmountWithUnit(goal, unit)} goal`;
-    else if (total >= goal) summary.textContent = `${formatAmountWithUnit(total, unit)} · Goal met (${pct}%)`;
-    else summary.textContent = `${formatAmountWithUnit(total, unit)} · ${pct}% of goal`;
+    const goalLabel = formatAmountWithUnit(goal, unit);
+    if (total === 0) summary.textContent = `0 ${unit} · 0% of ${goalLabel} goal`;
+    else if (total >= goal) summary.textContent = `${formatAmountWithUnit(total, unit)} · Goal met (${pct}% of ${goalLabel})`;
+    else summary.textContent = `${formatAmountWithUnit(total, unit)} · ${pct}% of ${goalLabel} goal`;
     renderLogList($('#cal-day-list'), $('#cal-day-empty'), entries, { actionable: selected <= dayKey() });
     const addBtn = $('#cal-day-add');
     if (addBtn) addBtn.hidden = selected > dayKey();
@@ -1761,7 +1765,10 @@
 
   function maybeRecordPaceWin() {
     const total = storage.totalForDay(store);
-    const pace = paceFor(total, store.goalMl, { wakeHour: store.wakeHour, sleepHour: store.sleepHour });
+    const pace = paceFor(total, storage.goalForDay(store, dayKey()), {
+      wakeHour: store.wakeHour,
+      sleepHour: store.sleepHour,
+    });
     if (pace.state === 'ahead' || pace.state === 'on-track' || pace.state === 'done') {
       if (storage.recordPaceWin(store)) processAchievements({ paceWin: true });
     }
@@ -1769,8 +1776,9 @@
 
   function render() {
     const unit = store.unit;
-    const goal = store.goalMl;
     const today = dayKey();
+    const goal = storage.goalForDay(store, today);
+    const savedGoal = store.goalMl;
     const total = storage.totalForDay(store, today);
     const entries = storage.entriesForDay(store, today);
     const greetName = store.name ? `, ${store.name}` : '';
@@ -1839,7 +1847,7 @@
 
     const goalInput = $('#setting-goal');
     if (goalInput && document.activeElement !== goalInput) {
-      goalInput.value = unit === 'oz' ? String(Math.round(mlToOz(goal) * 10) / 10) : String(goal);
+      goalInput.value = unit === 'oz' ? String(Math.round(mlToOz(savedGoal) * 10) / 10) : String(savedGoal);
     }
     const goalUnit = $('#setting-goal-unit');
     if (goalUnit) goalUnit.textContent = unit;
@@ -2659,8 +2667,9 @@
 
     $('#undo-btn')?.addEventListener('click', () => {
       if (!undoState?.entry) return;
+      const todayGoal = storage.goalForDay(store, dayKey());
       const before = storage.totalForDay(store);
-      const wasReached = before >= store.goalMl && store.goalMl > 0;
+      const wasReached = before >= todayGoal && todayGoal > 0;
       storage.restoreEntry(store, undoState.entry);
       dismissUndo();
       haptic('light');
@@ -2668,7 +2677,7 @@
       render();
       render._fromUndo = false;
       const after = storage.totalForDay(store);
-      const nowReached = after >= store.goalMl && store.goalMl > 0;
+      const nowReached = after >= todayGoal && todayGoal > 0;
       if (!(nowReached && !wasReached)) showToast('Entry restored');
     });
 
@@ -2701,7 +2710,11 @@
       storage.setGoal(store, ml);
       haptic('medium');
       render();
-      showToast('Goal updated');
+      if (ml > (MAX_GOAL_ML || 7500) && store.goalMl < ml) {
+        showToast(`Goal saved at max ${formatAmountWithUnit(store.goalMl, store.unit)}`);
+      } else {
+        showToast('Goal updated');
+      }
       if (prev !== store.goalMl) processAchievements({ goalChanged: true });
     });
     $('#setting-wake')?.addEventListener('change', () => {
@@ -2794,7 +2807,7 @@
       try {
         const text = await file.text();
         storage.importJson(store, text);
-        lastGoalReached = storage.totalForDay(store) >= store.goalMl;
+        lastGoalReached = storage.dayMetGoal(store, dayKey());
         render();
         showToast('Backup imported');
         processAchievements({ imported: true, silent: false });
@@ -2876,7 +2889,7 @@
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => updateTabIndicator({ animate: false })).catch(() => {});
     }
-    lastGoalReached = storage.totalForDay(store) >= store.goalMl && store.goalMl > 0;
+    lastGoalReached = storage.dayMetGoal(store, dayKey());
     if (bgPhoto) {
       try {
         currentBgPhoto = await bgPhoto.initFromStorage();
