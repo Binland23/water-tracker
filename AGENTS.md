@@ -18,8 +18,14 @@ python3 -m http.server 8080
 ### Lint / test / build
 There is **no lint config, no automated test suite, and no build/bundle step** in this repo. "Build and run" == serve the static files. Do not add or expect `npm`/CI tooling unless a task explicitly introduces it.
 
-### Do not do browser verification unless instructed
-Do **not** open a browser, drive the UI, take screenshots, or record a video walkthrough unless the user **explicitly** asks for browser verification, a UI demo, or computer-use testing. Default to serving the app and verifying with HTTP requests, file/code inspection, and (when present) automated tests. Skip computer-use / GUI agents unless instructed.
+### Always browser-test before shipping
+Always verify changes in the browser before shipping, unless the user **explicitly** says to skip (for example `/no-test`). Serve the app over HTTP, open the served URL, and exercise the affected flow end to end the way a real user would — not a single screenshot of the first render.
+
+- Opening `index.html` via `file://` is not enough for this check: use the HTTP server so the service worker, PWA install, and offline cache behave as they do on a phone.
+- The app is **mobile/portrait-first**. On a wide desktop viewport the layout stretches full-width (no `max-width`); this is expected — use a narrow / mobile-sized viewport for the intended design.
+- If you changed how state is written or derived, open the other tabs that read it (Today, Insights, Calendar, Trophies) and confirm they stay consistent.
+- Check empty / error / already-complete states the change can hit, not only the happy path.
+- GUI / computer-use agents are expected for this verification. HTTP requests and code inspection can supplement it; they do not replace it.
 
 ### Service worker gotcha
 `sw.js` caches assets under a `CACHE_VERSION`. When changing JS/CSS/HTML, bump `CACHE_VERSION` in `sw.js` so a previously-loaded page picks up changes; otherwise a stale cached copy may be served. During local testing, a hard reload / disabling the SW cache avoids confusion.
