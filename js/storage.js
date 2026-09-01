@@ -237,17 +237,18 @@
 
   /**
    * Goal that applied on a given day. Past days keep the goal they were chasing.
-   * If the goal was hiked mid-day after the old goal was already met (or a
-   * later correction left a sticky high target on that date), keep the
+   * If the goal was hiked mid-day after the old goal was already met, keep the
    * start-of-day goal so the day still counts as complete.
+   * If today's saved goal is lower than history's target and that inflated
+   * target was never met, honor the saved goal immediately (a correction).
    */
   function goalForDay(store, key) {
     const latest = goalFromHistory(store, key);
     const atStart = goalFromHistory(store, key, { before: true });
-    if (atStart > 0 && atStart < latest) {
-      const total = totalForDay(store, key);
-      if (total >= atStart) return atStart;
-    }
+    const total = totalForDay(store, key);
+    if (atStart > 0 && atStart < latest && total >= atStart) return atStart;
+    const saved = fallbackGoal(store);
+    if (key === dayKey() && saved > 0 && saved < latest && total < latest) return saved;
     return latest;
   }
 
@@ -481,19 +482,26 @@
   function setGoal(store, goalMl) {
     const next = Math.max(100, Math.min(MAX_GOAL_ML || 7500, Math.round(goalMl)));
     const prev = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
-    if (next !== prev) {
-      const today = dayKey();
+    const today = dayKey();
+    const histToday = goalFromHistory(store, today);
+    const todayTotal = totalForDay(store, today);
+    const alreadyMet = todayTotal > 0 && todayTotal >= histToday;
+    // Only defer to tomorrow when today already hit its goal and the new
+    // target is higher. Lowering / correcting must apply immediately.
+    const keepToday = alreadyMet && next > histToday;
+    if (next !== prev || next !== histToday) {
       const hist = normalizeGoalHistory(store.goalHistory);
       if (!hist.length) {
         const keys = [...totalsByDay(store).keys()].sort();
         const first = keys[0] && keys[0] < today ? keys[0] : today;
         hist.push({ from: first, goalMl: prev });
       }
-      const todayTotal = totalForDay(store, today);
-      // Freeze today's target once anything is logged so a mid-day hike
-      // (or a mistaken huge save) cannot rewrite a day already in progress.
-      const keepToday = todayTotal > 0;
       const from = keepToday ? shiftDayKey(today, 1) : today;
+      if (!keepToday) {
+        for (let i = hist.length - 1; i >= 0; i--) {
+          if (hist[i].from > today) hist.splice(i, 1);
+        }
+      }
       const last = hist[hist.length - 1];
       if (last && last.from === from) last.goalMl = next;
       else if (!last || last.goalMl !== next) hist.push({ from, goalMl: next });
