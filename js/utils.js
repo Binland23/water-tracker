@@ -2,6 +2,7 @@
 (function (global) {
   const ML_PER_OZ = 29.5735;
   const DEFAULT_GOAL_ML = 2000;
+  const MAX_GOAL_ML = Math.round(250 * ML_PER_OZ);
   const QUICK_ADDS_ML = [250, 500, 750];
   const OWALA_OZ = 24;
   const OWALA_ML = Math.round(OWALA_OZ * ML_PER_OZ);
@@ -171,7 +172,7 @@
     const activityMul = { sedentary: 1, light: 1.1, moderate: 1.2, active: 1.35 }[activity] || 1.1;
     const climateMul = { cool: 1, mild: 1, warm: 1.1, hot: 1.2 }[climate] || 1;
     const oz = lb * 0.5 * activityMul * climateMul;
-    return Math.max(800, Math.round(ozToMl(oz)));
+    return Math.max(800, Math.min(Math.round(ozToMl(oz)), MAX_GOAL_ML));
   }
 
   /**
@@ -237,6 +238,7 @@
   global.WaterUtils = {
     ML_PER_OZ,
     DEFAULT_GOAL_ML,
+    MAX_GOAL_ML,
     mlToOz,
     ozToMl,
     toMl,

@@ -61,7 +61,7 @@
     store.reminders.lastFired = stamp;
     storage.save(store);
 
-    const goal = store.goalMl || 2000;
+    const goal = storage.goalForDay(store, dayKey()) || 2000;
     const total = storage.totalForDay(store);
     const left = Math.max(0, goal - total);
     const unit = store.unit;

@@ -1,6 +1,6 @@
 /** localStorage model — v2 with automatic v1 migration. */
 (function (global) {
-  const { dayKey, uid, clamp, DEFAULT_GOAL_ML } = global.WaterUtils;
+  const { dayKey, uid, clamp, DEFAULT_GOAL_ML, MAX_GOAL_ML } = global.WaterUtils;
 
   const V1_KEY = 'water-tracker:v1';
   const STORAGE_KEY = 'water-tracker:v2';
@@ -208,17 +208,47 @@
     return dayKey(dt);
   }
 
-  /** Goal that applied on a given day. Past days keep the goal they were chasing. */
-  function goalForDay(store, key) {
-    const fallback = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
+  function fallbackGoal(store) {
+    return store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
+  }
+
+  /**
+   * Walk goalHistory. `before: true` ignores a same-day change so we can
+   * recover the goal the day started with.
+   */
+  function goalFromHistory(store, key, { before = false } = {}) {
+    const fallback = fallbackGoal(store);
     const hist = store.goalHistory || [];
     if (!hist.length) return fallback;
-    let goal = hist[0].goalMl;
+    const applies = before ? (from) => from < key : (from) => from <= key;
+    let goal = before ? fallback : hist[0].goalMl;
+    let hit = !before;
     for (const row of hist) {
-      if (row.from <= key) goal = row.goalMl;
-      else break;
+      if (applies(row.from)) {
+        goal = row.goalMl;
+        hit = true;
+      } else {
+        break;
+      }
     }
+    if (before && !hit && hist[0].from > key) return hist[0].goalMl;
     return goal;
+  }
+
+  /**
+   * Goal that applied on a given day. Past days keep the goal they were chasing.
+   * If the goal was hiked mid-day after the old goal was already met (or a
+   * later correction left a sticky high target on that date), keep the
+   * start-of-day goal so the day still counts as complete.
+   */
+  function goalForDay(store, key) {
+    const latest = goalFromHistory(store, key);
+    const atStart = goalFromHistory(store, key, { before: true });
+    if (atStart > 0 && atStart < latest) {
+      const total = totalForDay(store, key);
+      if (total >= atStart) return atStart;
+    }
+    return latest;
   }
 
   function dayMetGoal(store, key, total) {
@@ -449,7 +479,7 @@
   }
 
   function setGoal(store, goalMl) {
-    const next = Math.max(100, Math.round(goalMl));
+    const next = Math.max(100, Math.min(MAX_GOAL_ML || 7500, Math.round(goalMl)));
     const prev = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
     if (next !== prev) {
       const today = dayKey();
@@ -460,7 +490,9 @@
         hist.push({ from: first, goalMl: prev });
       }
       const todayTotal = totalForDay(store, today);
-      const keepToday = todayTotal > 0 && todayTotal >= prev;
+      // Freeze today's target once anything is logged so a mid-day hike
+      // (or a mistaken huge save) cannot rewrite a day already in progress.
+      const keepToday = todayTotal > 0;
       const from = keepToday ? shiftDayKey(today, 1) : today;
       const last = hist[hist.length - 1];
       if (last && last.from === from) last.goalMl = next;
@@ -496,7 +528,9 @@
     store.onboarded = true;
     if (typeof profile.name === 'string') store.name = profile.name.trim().slice(0, 24);
     if (profile.unit === 'ml' || profile.unit === 'oz') store.unit = profile.unit;
-    if (Number(profile.goalMl) > 0) store.goalMl = Math.round(profile.goalMl);
+    if (Number(profile.goalMl) > 0) {
+      store.goalMl = Math.max(100, Math.min(MAX_GOAL_ML || 7500, Math.round(profile.goalMl)));
+    }
     if (Number.isFinite(Number(profile.wakeHour))) {
       store.wakeHour = clamp(Math.round(profile.wakeHour), 0, 23);
     }
