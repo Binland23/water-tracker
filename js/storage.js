@@ -175,15 +175,31 @@
     return d;
   }
 
+  function maxGoalMl() {
+    return MAX_GOAL_ML || 7500;
+  }
+
+  function capGoalMl(n) {
+    const x = Math.round(Number(n));
+    if (!Number.isFinite(x) || x <= 0) return DEFAULT_GOAL_ML;
+    return Math.max(100, Math.min(maxGoalMl(), x));
+  }
+
+  function isInflatedGoal(goalMl) {
+    return Number(goalMl) > maxGoalMl();
+  }
+
   function normalizeGoalHistory(raw) {
     if (!Array.isArray(raw)) return [];
     const rows = [];
+    const max = maxGoalMl();
     for (const row of raw) {
       if (!row || typeof row !== 'object') continue;
       const from = String(row.from || '');
       const goalMl = Math.round(Number(row.goalMl));
       if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) continue;
-      if (!Number.isFinite(goalMl) || goalMl < 100) continue;
+      // Drop impossible targets (e.g. ~712 oz from a double-converted save).
+      if (!Number.isFinite(goalMl) || goalMl < 100 || goalMl > max) continue;
       rows.push({ from, goalMl });
     }
     rows.sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
@@ -209,7 +225,7 @@
   }
 
   function fallbackGoal(store) {
-    return store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
+    return capGoalMl(store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML);
   }
 
   /**
@@ -239,6 +255,8 @@
    * Goal that applied on a given day. Past days keep the goal they were chasing.
    * If the goal was hiked mid-day after the old goal was already met, keep the
    * start-of-day goal so the day still counts as complete.
+   * Impossible targets (above the max, e.g. ~712 oz) are ignored so a later
+   * correction applies to those days too — not only "today".
    * If today's saved goal is lower than history's target and that inflated
    * target was never met, honor the saved goal immediately (a correction).
    */
@@ -246,10 +264,14 @@
     const latest = goalFromHistory(store, key);
     const atStart = goalFromHistory(store, key, { before: true });
     const total = totalForDay(store, key);
-    if (atStart > 0 && atStart < latest && total >= atStart) return atStart;
     const saved = fallbackGoal(store);
-    if (key === dayKey() && saved > 0 && saved < latest && total < latest) return saved;
-    return latest;
+    const start = atStart > 0 && !isInflatedGoal(atStart) ? atStart : 0;
+    const current = latest > 0 && !isInflatedGoal(latest) ? latest : 0;
+    if (start && current && start < current && total >= start) return start;
+    if (start && !current && total >= start) return start;
+    const goal = current || start || saved;
+    if (key === dayKey() && saved > 0 && saved < goal && total < goal) return saved;
+    return goal;
   }
 
   function dayMetGoal(store, key, total) {
@@ -289,12 +311,22 @@
     if (!seenMigrated && Object.keys(achievementsSeen).length === 0) {
       achievementsSeen = { ...achievements };
     }
+    const goalHistory = normalizeGoalHistory(data.goalHistory);
+    const rawGoal = Number(data.goalMl);
+    let goalMl;
+    if (isInflatedGoal(rawGoal)) {
+      // Impossible targets are data bugs, not a real 250 oz cap. Prefer the
+      // latest valid history row, else the default daily goal.
+      goalMl = goalHistory.length ? goalHistory[goalHistory.length - 1].goalMl : DEFAULT_GOAL_ML;
+    } else {
+      goalMl = capGoalMl(rawGoal > 0 ? rawGoal : DEFAULT_GOAL_ML);
+    }
     return {
       version: 2,
       onboarded: data.onboarded === true || (Array.isArray(data.entries) && data.entries.length > 0),
       name: typeof data.name === 'string' ? data.name.trim().slice(0, 24) : '',
-      goalMl: Number(data.goalMl) > 0 ? Number(data.goalMl) : DEFAULT_GOAL_ML,
-      goalHistory: normalizeGoalHistory(data.goalHistory),
+      goalMl,
+      goalHistory,
       unit: data.unit === 'ml' ? 'ml' : 'oz',
       theme,
       wakeHour: clamp(Math.round(Number(data.wakeHour) || 7), 0, 23),
@@ -336,7 +368,13 @@
         const owalaCount = Array.isArray(parsed.bottles)
           ? parsed.bottles.filter((b) => b && (b.id === 'owala' || String(b.label || '').trim().toLowerCase() === 'owala')).length
           : 0;
-        if (parsed.achievementsSeenMigrated !== true || owalaCount !== 1) save(store);
+        const repairedGoal = isInflatedGoal(parsed.goalMl);
+        const repairedHist = Array.isArray(parsed.goalHistory)
+          ? parsed.goalHistory.some((row) => row && isInflatedGoal(row.goalMl))
+          : false;
+        if (parsed.achievementsSeenMigrated !== true || owalaCount !== 1 || repairedGoal || repairedHist) {
+          save(store);
+        }
         return store;
       }
       const raw1 = localStorage.getItem(V1_KEY);
@@ -480,18 +518,21 @@
   }
 
   function setGoal(store, goalMl) {
-    const next = Math.max(100, Math.min(MAX_GOAL_ML || 7500, Math.round(goalMl)));
-    const prev = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
+    const next = capGoalMl(goalMl);
+    const rawPrev = store.goalMl > 0 ? store.goalMl : DEFAULT_GOAL_ML;
+    const prevInflated = isInflatedGoal(rawPrev);
+    const prev = capGoalMl(rawPrev);
     const today = dayKey();
+    store.goalHistory = normalizeGoalHistory(store.goalHistory);
     const histToday = goalFromHistory(store, today);
     const todayTotal = totalForDay(store, today);
     const alreadyMet = todayTotal > 0 && todayTotal >= histToday;
     // Only defer to tomorrow when today already hit its goal and the new
     // target is higher. Lowering / correcting must apply immediately.
     const keepToday = alreadyMet && next > histToday;
-    if (next !== prev || next !== histToday) {
+    if (next !== prev || next !== histToday || prevInflated) {
       const hist = normalizeGoalHistory(store.goalHistory);
-      if (!hist.length) {
+      if (!hist.length && !prevInflated && next !== prev) {
         const keys = [...totalsByDay(store).keys()].sort();
         const first = keys[0] && keys[0] < today ? keys[0] : today;
         hist.push({ from: first, goalMl: prev });
@@ -537,7 +578,7 @@
     if (typeof profile.name === 'string') store.name = profile.name.trim().slice(0, 24);
     if (profile.unit === 'ml' || profile.unit === 'oz') store.unit = profile.unit;
     if (Number(profile.goalMl) > 0) {
-      store.goalMl = Math.max(100, Math.min(MAX_GOAL_ML || 7500, Math.round(profile.goalMl)));
+      store.goalMl = capGoalMl(profile.goalMl);
     }
     if (Number.isFinite(Number(profile.wakeHour))) {
       store.wakeHour = clamp(Math.round(profile.wakeHour), 0, 23);
