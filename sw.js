@@ -1,5 +1,5 @@
 // Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = 'water-tracker-v47';
+const CACHE_VERSION = 'water-tracker-v48';
 
 const PRECACHE = [
   './',
@@ -17,6 +17,7 @@ const PRECACHE = [
   'js/mascot.js',
   'js/bg-photo.js',
   'js/celebrations.js',
+  'js/celebration-preview.js',
   'assets/icons/icon-192.png',
   'assets/icons/icon-512.png',
   'assets/icons/apple-touch-icon.png',

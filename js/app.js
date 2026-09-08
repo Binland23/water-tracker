@@ -33,7 +33,6 @@
   const achievements = window.WaterAchievements;
   const mascotApi = window.WaterMascot;
   const celebrations = window.WaterCelebrations;
-  let celebrationPreviews = [];
   const haptic = window.WaterHaptics ? window.WaterHaptics.haptic : () => {};
 
   let store = storage.load();
@@ -1094,37 +1093,12 @@
   }
 
   function previewCelebration(kindOrId) {
-    if (!celebrations?.play) {
+    if (!window.WaterCelebrationPreview) {
       showToast('Celebrations unavailable');
       return;
     }
-    closeSheets();
-    const streak = Math.max(3, storage.currentStreak(store) || 7);
-    const raw = (kindOrId || 'random').toLowerCase();
-    let id;
-    if (raw === 'random' || raw === '1' || raw === 'true') {
-      if (!celebrationPreviews.length) celebrationPreviews = celebrations.listAnimations?.() || [...(celebrations.banks?.goal || [])];
-      id = celebrationPreviews.pop() || 'goal';
-      celebrations.play(id, { title: 'Preview', subtitle: id.replace(/-/g, ' '), streak, stamp: 'WOW', short: '★' });
-    } else if (raw === 'goal' || raw === 'streak' || raw === 'milestone') {
-      id = celebrations.play(raw, {
-        title: raw === 'goal' ? 'Goal met' : `${streak}-day streak`,
-        subtitle: 'Preview mode',
-        streak,
-        stamp: raw === 'goal' ? 'GOAL' : `${streak}★`,
-        short: raw === 'goal' ? '✓' : String(streak),
-      });
-    } else {
-      id = celebrations.play(raw, {
-        title: 'Preview',
-        subtitle: raw.replace(/-/g, ' '),
-        streak,
-        stamp: 'FX',
-        short: '★',
-      });
-    }
-    showToast(`Celebration: ${id || raw}`, { duration: 1800 });
-    haptic('success');
+    // Leave Settings in place beneath the modal so closing returns to the launcher.
+    window.WaterCelebrationPreview.open((kindOrId || 'random').toLowerCase());
   }
 
   function playElectrolytesFx() {

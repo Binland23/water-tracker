@@ -191,7 +191,8 @@ js/storage.js       v2 model + v1 migration
 js/utils.js         Units, pace, drink math
 js/achievements.js  Badge catalog
 js/mascot.js        Dew
-js/celebrations.js  Goal / streak FX
+js/celebrations.js  Shared cinematic goal / streak scenes
+js/celebration-preview.js  Searchable celebration studio and playback controls
 js/bg-photo.js      IndexedDB photo
 js/haptics.js       Vibration + iOS Taptic
 js/sound.js         Optional sip tones
@@ -211,16 +212,31 @@ Personal use — do what you want with it.
 
 ## Goal celebrations
 
-The celebration library contains 29 effects, including 12 six-second canvas scenes:
-Pearl Supernova, Lantern Lagoon, Jellyfish Ballet, Lotus Awakening, Moonlit Tide,
-Coral Symphony, Celestial Compass, Rainbow Regatta, Wish Constellation,
-Liquid Fireworks, Vortex Bloom, and Diamond Rain. Each scene combines ambient
-particles, water rings, its own choreography, and a delayed achievement reveal.
+All 29 celebrations use a shared six-second canvas stage: a tinted night-sky
+backdrop, ambient particles and water rings, an achievement reveal, and a soft
+exit. The original 17 effects have been rebuilt with distinct choreography,
+including rising and popping bubbles, reversing rain, refracting light, orbiting
+koi, separating crystal facets, and an expanding galaxy.
 
-Goal, streak, and milestone pools each use a shuffled rotation, saved locally so
-reopening the app continues the pool. Settings → Preview celebration cycles
-through the full library for the current session without changing water totals.
-For a specific scene, open `?celebrate=lotus-awakening` (or another hyphenated name).
-Effects end automatically; Escape dismisses them and backgrounding clears them.
-Reduced-motion preferences show a static confirmation instead of moving scenery.
-No new dependencies or downloaded visual assets are required.
+The collection also includes Pearl Supernova, Lantern Lagoon, Jellyfish Ballet,
+Lotus Awakening, Moonlit Tide, Coral Symphony, Celestial Compass, Rainbow Regatta,
+Wish Constellation, Liquid Fireworks, Vortex Bloom, and Diamond Rain.
+
+Open **Settings → Preview celebration** for the Celebration studio:
+
+- Search and select any scene directly.
+- Use Previous, Replay, and Next without leaving the preview. Previous and Next
+  follow the filtered list and wrap at either end; arrow keys work outside inputs.
+- Enable Auto-play to watch scenes one after another. Turning it off lets the
+  current scene finish. Leaving the app pauses playback and disables Auto-play.
+- Close the studio or press Escape to return to Settings. Previewing never changes
+  the water log or advances the saved goal/streak rotations.
+
+For a specific scene, open `?celebrate=lotus-awakening` (or another hyphenated
+scene name). Goal, streak, and milestone pools each use a shuffled rotation saved
+locally, so reopening the app continues the pool. Effects clean up automatically;
+Escape dismisses them and backgrounding clears them. Reduced-motion preferences
+use a static confirmation in both the app and studio.
+
+No new dependencies or downloaded visual assets are required. The studio script
+is precached by the service worker for offline use.

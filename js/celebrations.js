@@ -89,433 +89,25 @@
     return b;
   }
 
-  /* ─── Individual animations ─────────────────────────────────────── */
-
-  /** Soft teal/cyan northern-lights ribbons sweep the sky. */
-  function aquaAurora(host, ctx) {
-    host.classList.add('cele-aurora');
-    const sky = document.createElement('div');
-    sky.className = 'cele-aurora-sky';
-    for (let i = 0; i < 5; i++) {
-      const ribbon = document.createElement('div');
-      ribbon.className = `cele-aurora-ribbon r${i}`;
-      ribbon.style.setProperty('--hue', String(165 + i * 18 + rand(-8, 8)));
-      ribbon.style.setProperty('--delay', `${i * 0.12}s`);
-      ribbon.style.setProperty('--dur', `${2.4 + i * 0.25}s`);
-      ribbon.style.setProperty('--y', `${12 + i * 14 + rand(-4, 4)}%`);
-      sky.appendChild(ribbon);
-    }
-    const stars = document.createElement('div');
-    stars.className = 'cele-aurora-stars';
-    for (let i = 0; i < 28; i++) {
-      const s = document.createElement('span');
-      s.style.left = `${rand(2, 98)}%`;
-      s.style.top = `${rand(4, 55)}%`;
-      s.style.setProperty('--sd', `${rand(0, 1.2)}s`);
-      s.style.setProperty('--ss', `${rand(0.4, 1.2)}`);
-      stars.appendChild(s);
-    }
-    host.appendChild(sky);
-    host.appendChild(stars);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3200);
-  }
-
-  /** Giant iridescent soap bubbles rise and pop. */
-  function bubbleCascade(host, ctx) {
-    host.classList.add('cele-bubbles');
-    const field = document.createElement('div');
-    field.className = 'cele-bubble-field';
-    for (let i = 0; i < 18; i++) {
-      const b = document.createElement('div');
-      b.className = 'cele-bubble';
-      const size = rand(28, 96);
-      b.style.width = `${size}px`;
-      b.style.height = `${size}px`;
-      b.style.left = `${rand(2, 92)}%`;
-      b.style.setProperty('--rise', `${rand(2.2, 3.8)}s`);
-      b.style.setProperty('--delay', `${rand(0, 0.9)}s`);
-      b.style.setProperty('--drift', `${rand(-40, 40)}px`);
-      b.style.setProperty('--hue', String(rand(170, 220)));
-      field.appendChild(b);
-    }
-    host.appendChild(field);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3800);
-  }
-
-  /** Rain falls, then gravity flips — drops fly upward. */
-  function rainReversal(host, ctx) {
-    host.classList.add('cele-rain');
-    const field = document.createElement('div');
-    field.className = 'cele-rain-field';
-    for (let i = 0; i < 42; i++) {
-      const d = document.createElement('span');
-      d.className = 'cele-drop';
-      d.style.left = `${rand(1, 99)}%`;
-      d.style.setProperty('--fall', `${rand(0.55, 1.1)}s`);
-      d.style.setProperty('--delay', `${rand(0, 0.55)}s`);
-      d.style.setProperty('--len', `${rand(10, 22)}px`);
-      d.style.setProperty('--thick', `${rand(1.5, 3)}px`);
-      field.appendChild(d);
-    }
-    host.appendChild(field);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3400);
-  }
-
-  /** Concentric ripples expand; a crown of droplets arcs outward. */
-  function rippleCrown(host, ctx) {
-    host.classList.add('cele-ripples');
-    const stage = document.createElement('div');
-    stage.className = 'cele-ripple-stage';
-    for (let i = 0; i < 5; i++) {
-      const ring = document.createElement('div');
-      ring.className = 'cele-ring';
-      ring.style.setProperty('--i', String(i));
-      stage.appendChild(ring);
-    }
-    for (let i = 0; i < 16; i++) {
-      const drop = document.createElement('span');
-      drop.className = 'cele-crown-drop';
-      const angle = (i / 16) * Math.PI * 2;
-      drop.style.setProperty('--a', `${angle}rad`);
-      drop.style.setProperty('--delay', `${0.15 + i * 0.03}s`);
-      stage.appendChild(drop);
-    }
-    host.appendChild(stage);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3000);
-  }
-
-  /** Droplets orbit the center then fling into a starburst. */
-  function splashOrbit(host, ctx) {
-    host.classList.add('cele-orbit');
-    const stage = document.createElement('div');
-    stage.className = 'cele-orbit-stage';
-    for (let i = 0; i < 24; i++) {
-      const p = document.createElement('span');
-      p.className = 'cele-orbit-particle';
-      const angle = (i / 24) * 360;
-      p.style.setProperty('--a', `${angle}deg`);
-      p.style.setProperty('--r', `${rand(48, 72)}px`);
-      p.style.setProperty('--delay', `${i * 0.02}s`);
-      p.style.setProperty('--hue', String(175 + (i % 8) * 12));
-      stage.appendChild(p);
-    }
-    const core = document.createElement('div');
-    core.className = 'cele-orbit-core';
-    stage.appendChild(core);
-    host.appendChild(stage);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3200);
-  }
-
-  /** A full-width tidal wave sweeps across, then recedes with foam. */
-  function tideWave(host, ctx) {
-    host.classList.add('cele-tide');
-    const wave = document.createElement('div');
-    wave.className = 'cele-tide-wave';
-    wave.innerHTML = `
-      <svg class="cele-tide-svg" viewBox="0 0 1200 400" preserveAspectRatio="none" aria-hidden="true">
-        <path class="cele-tide-body" d="M0 220 C120 160 200 280 340 200 C480 120 560 260 720 180 C880 100 980 240 1200 160 L1200 400 L0 400 Z"/>
-        <path class="cele-tide-foam" d="M0 220 C120 160 200 280 340 200 C480 120 560 260 720 180 C880 100 980 240 1200 160"
-          fill="none" stroke="rgba(230,250,255,0.75)" stroke-width="6"/>
-      </svg>
-    `;
-    const spray = document.createElement('div');
-    spray.className = 'cele-tide-spray';
-    for (let i = 0; i < 20; i++) {
-      const s = document.createElement('span');
-      s.style.left = `${rand(10, 90)}%`;
-      s.style.setProperty('--d', `${rand(0.4, 1.2)}s`);
-      s.style.setProperty('--x', `${rand(-30, 30)}px`);
-      spray.appendChild(s);
-    }
-    host.appendChild(wave);
-    host.appendChild(spray);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3400);
-  }
-
-  /** Prismatic light beam refracts rainbow shards across the screen. */
-  function hydroPrism(host, ctx) {
-    host.classList.add('cele-prism');
-    const beam = document.createElement('div');
-    beam.className = 'cele-prism-beam';
-    host.appendChild(beam);
-    const shards = document.createElement('div');
-    shards.className = 'cele-prism-shards';
-    const hues = [0, 30, 55, 120, 180, 210, 270, 300];
-    for (let i = 0; i < 8; i++) {
-      const sh = document.createElement('div');
-      sh.className = 'cele-shard';
-      sh.style.setProperty('--h', String(hues[i]));
-      sh.style.setProperty('--a', `${-28 + i * 8}deg`);
-      sh.style.setProperty('--delay', `${0.1 + i * 0.06}s`);
-      shards.appendChild(sh);
-    }
-    host.appendChild(shards);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3000);
-  }
-
-  /** Soft bioluminescent fireflies rise from the bottom. */
-  function fireflyFountain(host, ctx) {
-    host.classList.add('cele-fireflies');
-    const field = document.createElement('div');
-    field.className = 'cele-firefly-field';
-    for (let i = 0; i < 36; i++) {
-      const f = document.createElement('span');
-      f.className = 'cele-firefly';
-      f.style.left = `${rand(5, 95)}%`;
-      f.style.setProperty('--rise', `${rand(2.0, 3.6)}s`);
-      f.style.setProperty('--delay', `${rand(0, 0.8)}s`);
-      f.style.setProperty('--drift', `${rand(-50, 50)}px`);
-      f.style.setProperty('--size', `${rand(4, 10)}px`);
-      f.style.setProperty('--hue', String(pick([165, 185, 200, 45, 280])));
-      field.appendChild(f);
-    }
-    host.appendChild(field);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3600);
-  }
-
-  /** Ice crystal lattice forms a badge, then shatters into sparkles. */
-  function crystalShatter(host, ctx) {
-    host.classList.add('cele-crystal');
-    const stage = document.createElement('div');
-    stage.className = 'cele-crystal-stage';
-    const badge = document.createElement('div');
-    badge.className = 'cele-crystal-badge';
-    badge.innerHTML = `<span>${ctx.short || '✓'}</span>`;
-    stage.appendChild(badge);
-    for (let i = 0; i < 14; i++) {
-      const shard = document.createElement('span');
-      shard.className = 'cele-ice-shard';
-      const angle = (i / 14) * 360 + rand(-8, 8);
-      shard.style.setProperty('--a', `${angle}deg`);
-      shard.style.setProperty('--dist', `${rand(80, 180)}px`);
-      shard.style.setProperty('--delay', `${0.85 + rand(0, 0.25)}s`);
-      shard.style.setProperty('--rot', `${rand(-120, 120)}deg`);
-      stage.appendChild(shard);
-    }
-    host.appendChild(stage);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3400);
-  }
-
-  /** Double helix of droplets spirals upward (DNA of hydration). */
-  function hydroHelix(host, ctx) {
-    host.classList.add('cele-helix');
-    const stage = document.createElement('div');
-    stage.className = 'cele-helix-stage';
-    for (let strand = 0; strand < 2; strand++) {
-      for (let i = 0; i < 16; i++) {
-        const d = document.createElement('span');
-        d.className = `cele-helix-bead strand-${strand}`;
-        // Precompute spiral x so we don't rely on CSS sin()
-        const phase = i * 0.55 + strand * Math.PI;
-        const x = Math.sin(phase) * 44;
-        d.style.setProperty('--x', `${x}px`);
-        d.style.setProperty('--y', `${-18 * i - 40}px`);
-        d.style.setProperty('--delay', `${i * 0.05 + strand * 0.08}s`);
-        stage.appendChild(d);
-      }
-    }
-    for (let i = 0; i < 8; i++) {
-      const bar = document.createElement('span');
-      bar.className = 'cele-helix-bar';
-      bar.style.setProperty('--i', String(i));
-      bar.style.setProperty('--delay', `${i * 0.1}s`);
-      bar.style.setProperty('--y', `${-36 * i - 20}px`);
-      stage.appendChild(bar);
-    }
-    host.appendChild(stage);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3600);
-  }
-
-  /** Chain of flame links for streak energy (water + fire paradox). */
-  function streakInferno(host, ctx) {
-    host.classList.add('cele-inferno');
-    const chain = document.createElement('div');
-    chain.className = 'cele-flame-chain';
-    const n = Math.min(12, Math.max(3, ctx.streak || 5));
-    for (let i = 0; i < n; i++) {
-      const link = document.createElement('div');
-      link.className = 'cele-flame-link';
-      link.style.setProperty('--i', String(i));
-      link.style.setProperty('--delay', `${i * 0.08}s`);
-      link.innerHTML = '<span class="cele-flame"></span>';
-      chain.appendChild(link);
-    }
-    const embers = document.createElement('div');
-    embers.className = 'cele-embers';
-    for (let i = 0; i < 24; i++) {
-      const e = document.createElement('span');
-      e.style.left = `${rand(10, 90)}%`;
-      e.style.setProperty('--d', `${rand(0, 0.6)}s`);
-      e.style.setProperty('--rise', `${rand(1.4, 2.4)}s`);
-      embers.appendChild(e);
-    }
-    host.appendChild(chain);
-    host.appendChild(embers);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3400);
-  }
-
-  /** Meteor-shower of water comets with long trails. */
-  function dropletMeteors(host, ctx) {
-    host.classList.add('cele-meteors');
-    const field = document.createElement('div');
-    field.className = 'cele-meteor-field';
-    for (let i = 0; i < 14; i++) {
-      const m = document.createElement('div');
-      m.className = 'cele-meteor';
-      m.style.left = `${rand(-5, 80)}%`;
-      m.style.top = `${rand(-10, 40)}%`;
-      m.style.setProperty('--delay', `${rand(0, 1.1)}s`);
-      m.style.setProperty('--dur', `${rand(0.7, 1.3)}s`);
-      m.style.setProperty('--len', `${rand(60, 140)}px`);
-      m.style.setProperty('--angle', `${rand(28, 48)}deg`);
-      field.appendChild(m);
-    }
-    host.appendChild(field);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3200);
-  }
-
-  /** Abstract koi silhouettes swim through a pond splash. */
-  function koiSplash(host, ctx) {
-    host.classList.add('cele-koi');
-    const pond = document.createElement('div');
-    pond.className = 'cele-koi-pond';
-    for (let i = 0; i < 3; i++) {
-      const fish = document.createElement('div');
-      fish.className = `cele-koi-fish f${i}`;
-      fish.style.setProperty('--delay', `${i * 0.25}s`);
-      fish.innerHTML = `
-        <svg viewBox="0 0 80 32" aria-hidden="true">
-          <ellipse cx="38" cy="16" rx="28" ry="11" fill="currentColor"/>
-          <path d="M12 16 L0 6 L4 16 L0 26 Z" fill="currentColor"/>
-          <circle cx="54" cy="13" r="2" fill="rgba(10,30,40,0.55)"/>
-          <path d="M30 6 Q38 0 46 6" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
-        </svg>
-      `;
-      pond.appendChild(fish);
-    }
-    for (let i = 0; i < 12; i++) {
-      const ring = document.createElement('span');
-      ring.className = 'cele-koi-ripple';
-      ring.style.left = `${rand(15, 85)}%`;
-      ring.style.top = `${rand(35, 70)}%`;
-      ring.style.setProperty('--delay', `${rand(0.2, 1.4)}s`);
-      pond.appendChild(ring);
-    }
-    host.appendChild(pond);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3600);
-  }
-
-  /** Rubber-stamp slam: GOAL MET / STREAK with ink splash. */
-  function stampSlam(host, ctx) {
-    host.classList.add('cele-stamp');
-    const stage = document.createElement('div');
-    stage.className = 'cele-stamp-stage';
-    const stamp = document.createElement('div');
-    stamp.className = 'cele-stamp-mark';
-    stamp.innerHTML = `
-      <span class="cele-stamp-text">${ctx.stamp || 'GOAL'}</span>
-      <span class="cele-stamp-edge"></span>
-    `;
-    stage.appendChild(stamp);
-    const ink = document.createElement('div');
-    ink.className = 'cele-ink-splash';
-    for (let i = 0; i < 10; i++) {
-      const blot = document.createElement('span');
-      blot.style.setProperty('--a', `${(i / 10) * 360}deg`);
-      blot.style.setProperty('--d', `${rand(20, 70)}px`);
-      blot.style.setProperty('--s', `${rand(6, 18)}px`);
-      ink.appendChild(blot);
-    }
-    stage.appendChild(ink);
-    host.appendChild(stage);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(2800);
-  }
-
-  /** Champagne fountain of water particles from the bottom center. */
-  function champagneFountain(host, ctx) {
-    host.classList.add('cele-fountain');
-    const field = document.createElement('div');
-    field.className = 'cele-fountain-field';
-    for (let i = 0; i < 48; i++) {
-      const p = document.createElement('span');
-      p.className = 'cele-fountain-drop';
-      const angle = rand(-70, 70);
-      p.style.setProperty('--a', `${angle}deg`);
-      p.style.setProperty('--v', `${rand(40, 95)}vh`);
-      p.style.setProperty('--delay', `${rand(0, 0.7)}s`);
-      p.style.setProperty('--dur', `${rand(1.1, 1.9)}s`);
-      p.style.setProperty('--size', `${rand(3, 8)}px`);
-      field.appendChild(p);
-    }
-    host.appendChild(field);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3200);
-  }
-
-  /** Spiral galaxy of droplets collapses into a bright core then bursts. */
-  function galaxySwirl(host, ctx) {
-    host.classList.add('cele-galaxy');
-    const stage = document.createElement('div');
-    stage.className = 'cele-galaxy-stage';
-    for (let i = 0; i < 40; i++) {
-      const p = document.createElement('span');
-      p.className = 'cele-galaxy-star';
-      const arm = i % 3;
-      const t = i / 40;
-      p.style.setProperty('--arm', String(arm));
-      p.style.setProperty('--t', String(t));
-      p.style.setProperty('--delay', `${t * 0.4}s`);
-      p.style.setProperty('--hue', String(180 + arm * 40 + rand(-10, 10)));
-      stage.appendChild(p);
-    }
-    const core = document.createElement('div');
-    core.className = 'cele-galaxy-core';
-    stage.appendChild(core);
-    host.appendChild(stage);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3600);
-  }
-
-  /** Paper-plane origami droplets glide in formation. */
-  function origamiFleet(host, ctx) {
-    host.classList.add('cele-origami');
-    const field = document.createElement('div');
-    field.className = 'cele-origami-field';
-    for (let i = 0; i < 7; i++) {
-      const plane = document.createElement('div');
-      plane.className = 'cele-plane';
-      plane.style.setProperty('--i', String(i));
-      plane.style.setProperty('--delay', `${i * 0.12}s`);
-      plane.style.setProperty('--y', `${18 + i * 9 + rand(-3, 3)}%`);
-      plane.innerHTML = `
-        <svg viewBox="0 0 48 24" aria-hidden="true">
-          <path d="M2 12 L46 2 L28 12 L46 22 Z" fill="currentColor"/>
-          <path d="M28 12 L18 14 L22 12 L18 10 Z" fill="rgba(10,40,50,0.25)"/>
-        </svg>
-      `;
-      field.appendChild(plane);
-    }
-    host.appendChild(field);
-    host.appendChild(banner(ctx.title, ctx.subtitle));
-    finish(3200);
-  }
-
-  // Twelve authored scenes share a bounded canvas, not hundreds of DOM particles.
+  // Every scene shares the same six-second cinematic stage and lifecycle.
   const SCENES = [
+    ['aqua-aurora', 'Aqua aurora', 170, 'aurora'],
+    ['bubble-cascade', 'Bubble cascade', 190, 'bubbles'],
+    ['rain-reversal', 'Rain reversal', 205, 'rain'],
+    ['ripple-crown', 'Ripple crown', 45, 'crown'],
+    ['splash-orbit', 'Splash orbit', 185, 'orbit'],
+    ['tide-wave', 'Tide wave', 195, 'wave'],
+    ['hydro-prism', 'Hydro prism', 210, 'prism'],
+    ['firefly-fountain', 'Firefly fountain', 155, 'fireflies'],
+    ['crystal-shatter', 'Crystal shatter', 200, 'crystal'],
+    ['hydro-helix', 'Hydro helix', 180, 'helix'],
+    ['streak-inferno', 'Streak inferno', 25, 'inferno'],
+    ['droplet-meteors', 'Droplet meteors', 220, 'meteors'],
+    ['koi-splash', 'Koi splash', 30, 'koi'],
+    ['stamp-slam', 'Stamp slam', 160, 'stamp'],
+    ['champagne-fountain', 'Champagne fountain', 45, 'fountain'],
+    ['galaxy-swirl', 'Galaxy swirl', 260, 'galaxy'],
+    ['origami-fleet', 'Origami fleet', 185, 'origami'],
     ['pearl-supernova', 'Pearl supernova', 190, 'burst'],
     ['lantern-lagoon', 'Lantern lagoon', 38, 'lantern'],
     ['jellyfish-ballet', 'Jellyfish ballet', 280, 'jelly'],
@@ -530,6 +122,257 @@
     ['diamond-rain', 'Diamond rain', 195, 'diamond'],
   ];
 
+  const TAU = Math.PI * 2;
+  const progress = (t, start, duration) => Math.max(0, Math.min(1, (t - start) / duration));
+  const easeOut = p => 1 - (1 - p) ** 3;
+
+  function ellipse(g, x, y, rx, ry, color, width = 1) {
+    g.strokeStyle = color;
+    g.lineWidth = width;
+    g.beginPath();
+    g.ellipse(x, y, Math.max(.01, rx), Math.max(.01, ry), 0, 0, TAU);
+    g.stroke();
+  }
+
+  function droplet(g, x, y, size, angle, color) {
+    g.save();
+    g.translate(x, y);
+    g.rotate(angle);
+    g.fillStyle = color;
+    g.beginPath();
+    g.moveTo(0, -size * 1.6);
+    g.bezierCurveTo(size * 1.5, 0, size, size, 0, size);
+    g.bezierCurveTo(-size, size, -size * 1.5, 0, 0, -size * 1.6);
+    g.fill();
+    g.restore();
+  }
+
+  // Original effects, reauthored with distinct build / reveal / release sequences.
+  const CLASSIC_RENDERERS = {
+    aurora({g, t, radius: r, w, reveal, color, dot}) {
+      for (let band = 0; band < 5; band++) {
+        const points = Array.from({length: 65}, (_, i) => {
+          const x = (i / 64 - .5) * w;
+          return [x, -r * .8 + band * r * .26 + Math.sin(i * .08 + t * .65 + band) * r * .3];
+        });
+        const glow = g.createLinearGradient(0, -r, 0, r);
+        glow.addColorStop(0, color(band * 14, .03));
+        glow.addColorStop(.5, color(band * 14, .28 * reveal));
+        glow.addColorStop(1, color(band * 14, 0));
+        g.fillStyle = glow;
+        g.beginPath();
+        points.forEach(([x,y], i) => i ? g.lineTo(x,y) : g.moveTo(x,y));
+        [...points].reverse().forEach(([x,y]) => g.lineTo(x,y + r * .7));
+        g.closePath(); g.fill();
+        for (let i = 0; i < points.length; i += 3) {
+          const [x,y] = points[i];
+          dot(x, y, 1.2 * reveal, color(20, .5));
+        }
+      }
+    },
+    bubbles({g, t, radius: r, w, reveal, color, seeds, dot}) {
+      for (let i = 0; i < 16; i++) {
+        const s = seeds[i];
+        const age = progress(t, i * .09, 4.2);
+        const x = (s.x - .5) * w * .9 + Math.sin(t + i) * 14;
+        const y = r * 1.2 - age * r * 2.6;
+        const size = (14 + s.r * 20) * reveal;
+        const pop = progress(age, .77, .23);
+        if (!pop) {
+          const fill = g.createRadialGradient(x-size*.3, y-size*.4, 0, x,y,size || 1);
+          fill.addColorStop(0, color(35,.13)); fill.addColorStop(.8, color(0,.02)); fill.addColorStop(1,color(15,.3));
+          g.fillStyle = fill; g.beginPath(); g.arc(x,y,size,0,TAU); g.fill();
+          ellipse(g,x,y,size,size,color(i*5,.65));
+          g.strokeStyle='#e9fbff'; g.beginPath(); g.arc(x,y,size*.77,3.6,4.5);g.stroke();
+        } else {
+          for (let k=0;k<8;k++) {
+            const a=k*TAU/8;
+            dot(x+Math.cos(a)*size*(1+pop),y+Math.sin(a)*size*(1+pop),2*(1-pop),color(25,1-pop));
+          }
+        }
+      }
+    },
+    rain({g, t, radius: r, w, color, seeds, line, dot}) {
+      const reversal = progress(t, 1.8, 2.7);
+      for (let i=0;i<65;i++) {
+        const s=seeds[i], x=(s.x-.5)*w;
+        const y = reversal ? r*.65 - easeOut(reversal)*r*(1.1+s.y) : -r*1.5+progress(t,s.y*.9,1.1)*r*2.15;
+        line([[x,y-(reversal?-14:18)],[x,y]],color(i%3*10,.7),1.4);
+        dot(x,y,1.8,color(20));
+      }
+      for(let i=0;i<4;i++) {
+        const p=progress(t,1.3+i*.13,1.8);
+        ellipse(g,0,r*.65,r*p,r*.15*p,color(20,(1-p)*.7));
+      }
+    },
+    crown({g, t, radius: r, reveal, color, dot, line}) {
+      const rise=easeOut(progress(t,.7,1.4)), release=progress(t,3.6,1.6);
+      for(let i=0;i<5;i++) ellipse(g,0,r*.4,r*(.3+i*.15)*reveal,r*(.07+i*.025)*reveal,color(5,.45-i*.06));
+      const points=[];
+      for(let i=0;i<=12;i++) {
+        const x=(i/12-.5)*r*1.6;
+        const y=r*.35-(i%2 ? r*(.5+.3*Math.cos(x/r))*rise : 0);
+        points.push([x,y]);
+        if(i%2) droplet(g,x*(1+release*.4),y-release*r*.6,6*(1-release),0,color());
+      }
+      line(points,color(0,.85*(1-release)),2);
+      line([[-r*.8,r*.45],[r*.8,r*.45]],color(10,.6*(1-release)),2);
+      for(let i=0;i<24;i++) {
+        const a=i*TAU/24, d=r*(.8+release*.6);
+        dot(Math.cos(a)*d,Math.sin(a)*d,1.5*rise,color(30,.6));
+      }
+    },
+    orbit({g, t, radius: r, reveal, color, dot}) {
+      const release=easeOut(progress(t,3.2,1.5));
+      for(let band=0;band<3;band++) {
+        g.save();g.rotate(band*Math.PI/3);
+        ellipse(g,0,0,r*.9*reveal,r*.3*reveal,color(band*15,.35*(1-release)));
+        for(let i=0;i<9;i++) {
+          const a=i*TAU/9+t*(1+band*.15), d=1+release*1.1;
+          droplet(g,Math.cos(a)*r*.9*d*reveal,Math.sin(a)*r*.3*d*reveal,3.5,a+Math.PI/2,color(band*15,1-release*.7));
+        }
+        g.restore();
+      }
+      dot(0,0,(8+Math.sin(t)*2)*reveal,color(20));
+    },
+    wave({g, t, radius: r, w, reveal, color, dot}) {
+      const swell=Math.sin(progress(t,.2,5)*Math.PI);
+      for(let j=4;j>=0;j--) {
+        const points=Array.from({length:81},(_,i)=>{
+          const x=(i/80-.5)*w;
+          const crest=Math.exp(-(((x/w-.5+t*.18)*4)**2));
+          return [x,r*.65+j*15-Math.sin(i*.09-t*1.3+j*.3)*r*.17-r*.9*crest*swell];
+        });
+        g.fillStyle=color(j*8,.1*reveal);g.beginPath();g.moveTo(-w/2,r*1.6);
+        points.forEach(([x,y])=>g.lineTo(x,y));g.lineTo(w/2,r*1.6);g.closePath();g.fill();
+        g.strokeStyle=color(j*8,.55);g.beginPath();points.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.stroke();
+        if(j===0) points.forEach(([x,y],i)=>{if(i%3===0)dot(x,y-3,1.6,color(0,.8));});
+      }
+    },
+    prism({g, t, radius: r, reveal, color, line}) {
+      const split=easeOut(progress(t,1.3,1.8));
+      line([[-r*1.6,-r*.4],[-r*.24,0]],`rgba(240,250,255,${reveal*.8})`,3);
+      for(let i=0;i<7;i++) {
+        g.fillStyle=`hsla(${i*45},80%,72%,${split*.2})`;
+        g.beginPath();g.moveTo(r*.15,0);g.lineTo(r*1.5,(i-3)*r*.18*split);g.lineTo(r*1.5,(i-2)*r*.18*split);g.closePath();g.fill();
+      }
+      const points=[[0,-r*.55],[-r*.48,r*.3],[r*.48,r*.3],[0,-r*.55]];
+      g.fillStyle=color(0,.12*reveal);g.beginPath();points.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.fill();
+      line(points,color(0,reveal),2);line([[0,-r*.55],[0,r*.05],[r*.48,r*.3]],color(20,.4));
+      ellipse(g,0,0,r*.83*reveal,r*.83*reveal,color(20,.15));
+    },
+    fireflies({t, radius: r, w, reveal, color, seeds, dot, line}) {
+      for(let i=0;i<70;i++) {
+        const s=seeds[i], gather=easeOut(progress(t,.6,2.5)), release=progress(t,3.7,1.4);
+        const a=i*2.39996+t*.15, d=r*(.2+s.x*.7);
+        const x=(s.x-.5)*w*(1-gather)+Math.cos(a)*d*gather+Math.sin(i)*release*r;
+        const y=r*(1-s.y*.4)*(1-gather)+Math.sin(a)*d*gather-release*r*.6;
+        const glow=.4+.6*Math.sin(t*1.8+i)**2;
+        dot(x,y,(2+s.r)*reveal,color(i%4*16,glow));
+        dot(x,y,7*reveal,color(i%4*16,.06*glow));
+        if(i%5===0)line([[x-3,y+8],[x,y]],color(0,.15));
+      }
+    },
+    crystal({g, t, radius: r, reveal, color, line}) {
+      const breakApart=easeOut(progress(t,2.7,1.6));
+      for(let i=0;i<12;i++) {
+        const a=i*TAU/12, d=breakApart*r*.8;
+        g.save();g.translate(Math.cos(a)*d,Math.sin(a)*d);g.rotate(a+breakApart*.4);
+        const points=[[0,0],[r*.65*reveal,-r*.17*reveal],[r*reveal,0],[r*.65*reveal,r*.17*reveal],[0,0]];
+        g.fillStyle=color(i*3,.2);g.beginPath();points.forEach(([x,y],j)=>j?g.lineTo(x,y):g.moveTo(x,y));g.fill();
+        line(points,color(i*3,.85),1);line([[0,0],[r*reveal,0]],color(0,.45));g.restore();
+      }
+    },
+    helix({t, radius: r, reveal, color, line, dot}) {
+      for(let i=0;i<28;i++) {
+        const y=(i/27-.5)*r*1.9, phase=i*.38-t*1.6, x=Math.sin(phase)*r*.43*reveal;
+        line([[-x,y],[x,y]],color(15,.22*reveal));
+        const front=(Math.cos(phase)+1)/2;
+        dot(x,y,(2.5+front*2.5)*reveal,color(0,.4+front*.6));
+        dot(-x,y,(5-front*2.5)*reveal,color(45,1-front*.6));
+      }
+    },
+    inferno({g, t, radius: r, reveal, color, seeds, dot}) {
+      const n=7;
+      for(let i=0;i<n;i++) {
+        const a=i*TAU/n-Math.PI/2, x=Math.cos(a)*r*.65, y=Math.sin(a)*r*.65;
+        ellipse(g,x,y,20*reveal,20*reveal,color(12,.4));
+        const height=(27+Math.sin(t*2.5+i)*5)*reveal;
+        g.fillStyle=color(i*3,.75);g.beginPath();g.moveTo(x,y+12);
+        g.bezierCurveTo(x-25,y,x+6,y-height*.5,x,y-height);
+        g.bezierCurveTo(x+30,y-5,x+15,y+18,x,y+12);g.fill();
+        dot(x,y,5*reveal,'#fff2c9');
+      }
+      seeds.slice(0,30).forEach((s,i)=>dot((s.x-.5)*r*2,r-((t*.25+s.y)%1)*r*2.5,1.7*reveal,color(i%3*10,.65)));
+    },
+    meteors({t, radius: r, w, color, seeds, line, dot}) {
+      for(let i=0;i<18;i++) {
+        const s=seeds[i], p=progress(t,i*.17,1.8);
+        if(p<=0 || p>=1)continue;
+        const x=(s.x-.8)*w+p*w*.8, y=-r*1.2+p*r*2.2;
+        for(let k=0;k<6;k++)line([[x-k*10,y-k*8],[x-(k+1)*10,y-(k+1)*8]],color(i%4*12,(1-k/6)*.55),2-k*.2);
+        dot(x,y,3.5,color(10));
+      }
+    },
+    koi({g, t, radius: r, reveal, color}) {
+      for(let i=0;i<3;i++) {
+        const a=t*.65+i*TAU/3, x=Math.cos(a)*r*.72, y=Math.sin(a)*r*.42;
+        g.save();g.translate(x,y);g.rotate(Math.atan2(Math.cos(a)*.42,-Math.sin(a)*.72));g.scale(reveal,reveal);
+        g.fillStyle=color(i*25,.9);g.beginPath();g.ellipse(0,0,29,10,0,0,TAU);g.fill();
+        g.beginPath();g.moveTo(-22,0);g.lineTo(-42,-12+Math.sin(t*5+i)*4);g.lineTo(-35,0);g.lineTo(-42,12+Math.sin(t*5+i)*4);g.closePath();g.fill();
+        g.fillStyle='#f3f3e5';g.beginPath();g.ellipse(2,-2,11,7,-.3,0,TAU);g.fill();
+        g.fillStyle='#102331';g.beginPath();g.arc(19,-3,2,0,TAU);g.fill();g.restore();
+        ellipse(g,x-20,y+10,(12+(t*.4+i)%1*35)*reveal,8*reveal,color(160,.2));
+      }
+    },
+    stamp({g, t, radius: r, color, seeds, dot, ctx}) {
+      const land=easeOut(progress(t,.4,.7)), release=progress(t,4.2,1);
+      g.save();g.rotate(-.09);g.scale(1.5-land*.5,1.5-land*.5);g.globalAlpha*=land*(1-release);
+      g.strokeStyle=color();g.lineWidth=2;g.fillStyle=color(0,.08);
+      g.beginPath();g.roundRect(-r*.8,-r*.36,r*1.6,r*.72,12);g.fill();g.stroke();
+      g.setLineDash([3,5]);g.strokeRect(-r*.73,-r*.29,r*1.46,r*.58);g.setLineDash([]);
+      g.fillStyle=color();g.font=`600 ${Math.min(34,r*.28)}px sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(ctx.stamp || 'GOAL',0,0,r*1.3);g.restore();
+      const p=progress(t,.9,2.7);
+      for(let i=0;i<36;i++) {
+        const a=i*TAU/36,d=r*(.7+easeOut(p)*seeds[i].r*.7);
+        dot(Math.cos(a)*d,Math.sin(a)*d*.7,2*(1-p),color(20,.7));
+      }
+    },
+    fountain({g, t, radius: r, reveal, color}) {
+      for(let stream=0;stream<7;stream++) {
+        const angle=(stream-3)*.18;
+        for(let i=0;i<12;i++) {
+          const p=progress(t,i*.07+stream*.06,3.5);
+          if(p<=0 || p>=1)continue;
+          const x=Math.sin(angle)*r*3*p, y=r*.8-r*6*p*(1-p);
+          droplet(g,x,y,3.5*reveal,angle+p*Math.PI,color(stream*8,(1-p)*.9));
+        }
+      }
+      ellipse(g,0,r*.8,r*.6*reveal,r*.12,color(0,.45));
+    },
+    galaxy({t, radius: r, reveal, color, dot, line}) {
+      const collapse=easeOut(progress(t,2,1.2)), release=easeOut(progress(t,3.3,1.7));
+      for(let i=0;i<96;i++) {
+        const arm=i%3, p=i/96, a=arm*TAU/3+p*5+t*.6;
+        const d=r*(.12+p)*reveal*(1-collapse*.85+release*1.3);
+        const x=Math.cos(a)*d, y=Math.sin(a)*d*.7;
+        line([[x-5*Math.sin(a),y+5*Math.cos(a)],[x,y]],color(arm*25,.3));
+        dot(x,y,1.5+p*2,color(arm*25,.9-release*.5));
+      }
+      dot(0,0,(5+collapse*9-release*10)*reveal,'#f5eaff');
+    },
+    origami({g, t, radius: r, w, reveal, color, line}) {
+      for(let i=0;i<7;i++) {
+        const p=progress(t,i*.15,4.4), x=-w*.65+p*w*1.3, y=(i-3)*r*.24-Math.sin(p*Math.PI)*r*.5;
+        g.save();g.translate(x,y);g.rotate(-.15+Math.sin(t+i)*.08);g.scale(reveal,reveal);
+        const points=[[-25,-12],[30,0],[-25,12],[-10,0],[-25,-12]];
+        g.fillStyle=color(i*7,.65);g.beginPath();points.forEach(([px,py],j)=>j?g.lineTo(px,py):g.moveTo(px,py));g.fill();
+        line(points,color(i*7),1);line([[-10,0],[30,0]],'#e4f8ff',1);
+        line([[-38,0],[-70,4]],color(0,.2));g.restore();
+      }
+    },
+  };
+
   function cinematic(host, ctx, scene) {
     const [, name, hue, mode] = scene;
     host.classList.add('cele-cinema');
@@ -538,7 +381,7 @@
     canvas.className = 'cele-canvas';
     host.appendChild(canvas);
     const g = canvas.getContext('2d');
-    if (!g) { reducedFallback(host, ctx); return; }
+    if (!g) { canvas.remove(); reducedFallback(host, ctx); return; }
     const label = document.createElement('p');
     label.className = 'cele-scene-label';
     label.textContent = name;
@@ -576,7 +419,7 @@
       if (t >= 6) { clearFx(); return; }
       g.clearRect(0, 0, w, h);
       g.globalAlpha = clamp(t * 2) * clamp((6 - t) / .8);
-      const cx = w / 2, cy = h * .49;
+      const cx = w / 2, cy = h * (host.closest('.cele-preview-stage') ? .40 : .49);
       const reveal = 1 - Math.pow(1 - clamp((t - .25) / 1.8), 3);
       const color = (shift = 0, alpha = 1) => `hsla(${hue + shift},85%,75%,${alpha})`;
       // Distant dust and slow expanding water rings provide depth in every scene.
@@ -586,7 +429,9 @@
         g.beginPath(); g.ellipse(cx,cy+radius*.7, radius*(.4+((t*.22+j*.3)%1)),radius*.16,0,0,tau);g.stroke();
       }
       g.save(); g.translate(cx, cy);
-      if (mode === 'burst' || mode === 'vortex' || mode === 'fireworks') {
+      if (CLASSIC_RENDERERS[mode]) {
+        CLASSIC_RENDERERS[mode]({g, t, radius, w, h, reveal, color, seeds, dot, line, ctx});
+      } else if (mode === 'burst' || mode === 'vortex' || mode === 'fireworks') {
         for(let i=0;i<96;i++) {
           const s=seeds[i], group=i%3;
           const age=mode==='fireworks' ? clamp((t-.4-group*.65)/2.4) : clamp((t-.5)/3.6);
@@ -663,55 +508,15 @@
 
   /* ─── Banks ─────────────────────────────────────────────────────── */
 
-  const CINEMA_BANK = SCENES.map(scene => ({id: scene[0], play: (host, ctx) => cinematic(host, ctx, scene)}));
-
-  const GOAL_BANK = [
-    ...CINEMA_BANK,
-    { id: 'aqua-aurora', play: aquaAurora },
-    { id: 'bubble-cascade', play: bubbleCascade },
-    { id: 'rain-reversal', play: rainReversal },
-    { id: 'ripple-crown', play: rippleCrown },
-    { id: 'splash-orbit', play: splashOrbit },
-    { id: 'tide-wave', play: tideWave },
-    { id: 'hydro-prism', play: hydroPrism },
-    { id: 'firefly-fountain', play: fireflyFountain },
-    { id: 'hydro-helix', play: hydroHelix },
-    { id: 'droplet-meteors', play: dropletMeteors },
-    { id: 'koi-splash', play: koiSplash },
-    { id: 'champagne-fountain', play: champagneFountain },
-    { id: 'galaxy-swirl', play: galaxySwirl },
-    { id: 'origami-fleet', play: origamiFleet },
-    { id: 'crystal-shatter', play: crystalShatter },
-    { id: 'stamp-slam', play: stampSlam },
-  ];
-
-  const STREAK_BANK = [
-    ...CINEMA_BANK,
-    { id: 'streak-inferno', play: streakInferno },
-    { id: 'droplet-meteors', play: dropletMeteors },
-    { id: 'firefly-fountain', play: fireflyFountain },
-    { id: 'galaxy-swirl', play: galaxySwirl },
-    { id: 'stamp-slam', play: stampSlam },
-    { id: 'crystal-shatter', play: crystalShatter },
-    { id: 'champagne-fountain', play: champagneFountain },
-    { id: 'hydro-helix', play: hydroHelix },
-  ];
-
-  const MILESTONE_BANK = [
-    ...CINEMA_BANK,
-    { id: 'streak-inferno', play: streakInferno },
-    { id: 'galaxy-swirl', play: galaxySwirl },
-    { id: 'crystal-shatter', play: crystalShatter },
-    { id: 'tide-wave', play: tideWave },
-    { id: 'hydro-prism', play: hydroPrism },
-    { id: 'stamp-slam', play: stampSlam },
-    { id: 'aqua-aurora', play: aquaAurora },
-  ];
-
-  const ALL_BY_ID = {};
-  for (const item of [...GOAL_BANK, ...STREAK_BANK, ...MILESTONE_BANK]) {
-    ALL_BY_ID[item.id] = item;
-  }
+  const ALL_BY_ID = Object.fromEntries(SCENES.map(scene => [scene[0], {
+    id: scene[0], play: (host, ctx) => cinematic(host, ctx, scene),
+  }]));
+  const originalStreaks = ['streak-inferno', 'droplet-meteors', 'firefly-fountain', 'galaxy-swirl', 'stamp-slam', 'crystal-shatter', 'champagne-fountain', 'hydro-helix'];
+  const originalMilestones = ['streak-inferno', 'galaxy-swirl', 'crystal-shatter', 'tide-wave', 'hydro-prism', 'stamp-slam', 'aqua-aurora'];
+  const newIds = SCENES.slice(17).map(scene => scene[0]);
+  const GOAL_BANK = Object.values(ALL_BY_ID).filter(item => item.id !== 'streak-inferno');
+  const STREAK_BANK = [...newIds, ...originalStreaks].map(id => ALL_BY_ID[id]);
+  const MILESTONE_BANK = [...newIds, ...originalMilestones].map(id => ALL_BY_ID[id]);
 
   /** Streak lengths that get the big milestone treatment. */
   const STREAK_MILESTONES = [3, 7, 14, 21, 30, 50, 75, 100, 150, 200, 365];
@@ -743,14 +548,14 @@
   }
 
   function reducedFallback(host, ctx) {
-    host.classList.add('cele-reduced');
+    host.className = 'celebration-fx cele-reduced';
     host.appendChild(banner(ctx.title, ctx.subtitle));
     finish(1800);
   }
 
   /**
    * @param {'goal' | 'streak' | 'milestone' | string} kind
-   * @param {{ title?: string, subtitle?: string, streak?: number, stamp?: string, short?: string, id?: string }} [opts]
+   * @param {{ title?: string, subtitle?: string, streak?: number, stamp?: string, short?: string, id?: string, preview?: boolean }} [opts]
    */
   function play(kind, opts = {}) {
     reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false;
@@ -802,7 +607,7 @@
     } else if (ALL_BY_ID[kind]) {
       // Play a specific animation by id
       const item = ALL_BY_ID[kind];
-      lastPlayedId = item.id;
+      if (!opts.preview) lastPlayedId = item.id;
       const ctx = {
         title: title || 'Goal met',
         subtitle: subtitle || '',
@@ -865,6 +670,7 @@
     isStreakMilestone,
     STREAK_MILESTONES,
     listAnimations,
+    catalog: () => SCENES.map(([id, name, hue]) => ({id, name, hue})),
     clear: clearFx,
     /** ids in each bank (for debugging / preview UI) */
     banks: {
