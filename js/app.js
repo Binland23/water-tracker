@@ -33,6 +33,7 @@
   const achievements = window.WaterAchievements;
   const mascotApi = window.WaterMascot;
   const celebrations = window.WaterCelebrations;
+  let celebrationPreviews = [];
   const haptic = window.WaterHaptics ? window.WaterHaptics.haptic : () => {};
 
   let store = storage.load();
@@ -1102,8 +1103,8 @@
     const raw = (kindOrId || 'random').toLowerCase();
     let id;
     if (raw === 'random' || raw === '1' || raw === 'true') {
-      const list = celebrations.listAnimations?.() || celebrations.banks?.goal || [];
-      id = list[Math.floor(Math.random() * list.length)] || 'goal';
+      if (!celebrationPreviews.length) celebrationPreviews = celebrations.listAnimations?.() || [...(celebrations.banks?.goal || [])];
+      id = celebrationPreviews.pop() || 'goal';
       celebrations.play(id, { title: 'Preview', subtitle: id.replace(/-/g, ' '), streak, stamp: 'WOW', short: '★' });
     } else if (raw === 'goal' || raw === 'streak' || raw === 'milestone') {
       id = celebrations.play(raw, {

@@ -2005,3 +2005,52 @@ body.has-photo-bg .tab-indicator-glass {
 
 /* Reduced motion */
 .cele-reduced .cele-banner {
+
+  animation: none;
+}
+
+/* Cinematic celebrations: arrive, reveal, linger, dissolve. */
+.cele-cinema {
+  background: radial-gradient(ellipse at 50% 48%, hsla(var(--scene-hue), 55%, 18%, .9), rgba(5, 14, 28, .88));
+  animation: celeCinemaVeil 6s ease both;
+}
+.cele-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cele-cinema .cele-banner {
+  top: auto;
+  bottom: max(15%, calc(env(safe-area-inset-bottom) + 70px));
+  width: min(320px, calc(100vw - 40px));
+  box-sizing: border-box;
+  border-radius: 24px;
+  padding: 22px 18px 20px;
+  background: rgba(10, 24, 40, .88);
+  border-color: hsla(var(--scene-hue), 80%, 80%, .3);
+  animation: celeCinemaCard 6s ease both;
+}
+.cele-cinema .cele-banner-title { color: #f2faff; font-size: clamp(1.4rem, 6vw, 1.8rem); }
+.cele-cinema .cele-banner-sub { color: #c2d7e4; line-height: 1.5; }
+.cele-seal {
+  display: grid; place-items: center; margin: -43px auto 14px;
+  width: 44px; height: 44px; border-radius: 50%;
+  color: #102331; background: hsl(var(--scene-hue), 80%, 80%);
+  font-size: 24px; font-weight: 700;
+  box-shadow: 0 0 30px hsla(var(--scene-hue), 80%, 70%, .25);
+}
+.cele-scene-label {
+  position: absolute; top: max(9%, env(safe-area-inset-top)); left: 20px; right: 20px;
+  text-align: center; color: #d7e9f4; font-size: 10px; letter-spacing: .24em;
+  text-transform: uppercase; animation: celeCinemaCard 6s ease both;
+}
+@keyframes celeCinemaVeil { 0%, 100% { opacity: 0; } 12%, 85% { opacity: 1; } }
+@keyframes celeCinemaCard {
+  0%, 18% { opacity: 0; translate: 0 15px; }
+  32%, 83% { opacity: 1; translate: 0 0; }
+  100% { opacity: 0; translate: 0 -8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .celebration-fx *, .celebration-fx { animation: none !important; }
+  body.is-celebrating .mascot-svg { animation: none !important; }
+}
+@media (max-height: 520px) {
+  .cele-cinema .cele-banner { bottom: 24px; padding: 12px; }
+  .cele-seal { display: none; }
+}

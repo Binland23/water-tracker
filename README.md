@@ -208,3 +208,19 @@ When you change JS/CSS/HTML for production, bump `CACHE_VERSION` in `sw.js` so i
 ## License
 
 Personal use — do what you want with it.
+
+## Goal celebrations
+
+The celebration library contains 29 effects, including 12 six-second canvas scenes:
+Pearl Supernova, Lantern Lagoon, Jellyfish Ballet, Lotus Awakening, Moonlit Tide,
+Coral Symphony, Celestial Compass, Rainbow Regatta, Wish Constellation,
+Liquid Fireworks, Vortex Bloom, and Diamond Rain. Each scene combines ambient
+particles, water rings, its own choreography, and a delayed achievement reveal.
+
+Goal, streak, and milestone pools each use a shuffled rotation, saved locally so
+reopening the app continues the pool. Settings → Preview celebration cycles
+through the full library for the current session without changing water totals.
+For a specific scene, open `?celebrate=lotus-awakening` (or another hyphenated name).
+Effects end automatically; Escape dismisses them and backgrounding clears them.
+Reduced-motion preferences show a static confirmation instead of moving scenery.
+No new dependencies or downloaded visual assets are required.

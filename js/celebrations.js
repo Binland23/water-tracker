@@ -8,6 +8,9 @@
   /** @type {ReturnType<typeof setTimeout> | null} */
   let clearTimer = null;
   let lastPlayedId = null;
+  let frameId = null;
+  let sceneCleanup = null;
+  const rotations = new Map();
   let reducedMotion = false;
 
   try {
@@ -50,6 +53,10 @@
   }
 
   function clearFx() {
+    if (frameId !== null) cancelAnimationFrame(frameId);
+    frameId = null;
+    if (sceneCleanup) sceneCleanup();
+    sceneCleanup = null;
     if (clearTimer) {
       clearTimeout(clearTimer);
       clearTimer = null;
@@ -69,10 +76,16 @@
   function banner(title, subtitle) {
     const b = document.createElement('div');
     b.className = 'cele-banner';
-    b.innerHTML = `
-      <p class="cele-banner-title">${title}</p>
-      ${subtitle ? `<p class="cele-banner-sub">${subtitle}</p>` : ''}
-    `;
+    const heading = document.createElement('p');
+    heading.className = 'cele-banner-title';
+    heading.textContent = title || 'Goal met';
+    b.appendChild(heading);
+    if (subtitle) {
+      const sub = document.createElement('p');
+      sub.className = 'cele-banner-sub';
+      sub.textContent = subtitle;
+      b.appendChild(sub);
+    }
     return b;
   }
 
@@ -501,9 +514,159 @@
     finish(3200);
   }
 
+  // Twelve authored scenes share a bounded canvas, not hundreds of DOM particles.
+  const SCENES = [
+    ['pearl-supernova', 'Pearl supernova', 190, 'burst'],
+    ['lantern-lagoon', 'Lantern lagoon', 38, 'lantern'],
+    ['jellyfish-ballet', 'Jellyfish ballet', 280, 'jelly'],
+    ['lotus-awakening', 'Lotus awakening', 325, 'lotus'],
+    ['moonlit-tide', 'Moonlit tide', 215, 'tide'],
+    ['coral-symphony', 'Coral symphony', 15, 'coral'],
+    ['celestial-compass', 'Celestial compass', 45, 'compass'],
+    ['rainbow-regatta', 'Rainbow regatta', 180, 'regatta'],
+    ['wish-constellation', 'Wish constellation', 235, 'stars'],
+    ['liquid-fireworks', 'Liquid fireworks', 165, 'fireworks'],
+    ['vortex-bloom', 'Vortex bloom', 265, 'vortex'],
+    ['diamond-rain', 'Diamond rain', 195, 'diamond'],
+  ];
+
+  function cinematic(host, ctx, scene) {
+    const [, name, hue, mode] = scene;
+    host.classList.add('cele-cinema');
+    host.style.setProperty('--scene-hue', hue);
+    const canvas = document.createElement('canvas');
+    canvas.className = 'cele-canvas';
+    host.appendChild(canvas);
+    const g = canvas.getContext('2d');
+    if (!g) { reducedFallback(host, ctx); return; }
+    const label = document.createElement('p');
+    label.className = 'cele-scene-label';
+    label.textContent = name;
+    host.appendChild(label);
+    const card = banner(ctx.title, ctx.subtitle || 'A little moment for a daily win');
+    const seal = document.createElement('div');
+    seal.className = 'cele-seal';
+    seal.textContent = ctx.short || '✓';
+    card.prepend(seal);
+    host.appendChild(card);
+    let w, h, radius;
+    function resize() {
+      w = host.clientWidth; h = host.clientHeight;
+      radius = Math.min(w * .38, h * .24, 235);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    sceneCleanup = () => window.removeEventListener('resize', resize);
+    const seeds = Array.from({length: 100}, () => ({x: Math.random(), y: Math.random(), r: rand(.5, 1.5)}));
+    const tau = Math.PI * 2;
+    const clamp = v => Math.max(0, Math.min(1, v));
+    function dot(x, y, r, color) {
+      g.fillStyle = color; g.beginPath(); g.arc(x, y, Math.max(.1, r), 0, tau); g.fill();
+    }
+    function line(points, color, width = 1) {
+      g.strokeStyle = color; g.lineWidth = width; g.beginPath();
+      points.forEach(([x,y], i) => i ? g.lineTo(x,y) : g.moveTo(x,y)); g.stroke();
+    }
+    const start = performance.now();
+    function draw(now) {
+      const t = (now - start) / 1000;
+      if (t >= 6) { clearFx(); return; }
+      g.clearRect(0, 0, w, h);
+      g.globalAlpha = clamp(t * 2) * clamp((6 - t) / .8);
+      const cx = w / 2, cy = h * .49;
+      const reveal = 1 - Math.pow(1 - clamp((t - .25) / 1.8), 3);
+      const color = (shift = 0, alpha = 1) => `hsla(${hue + shift},85%,75%,${alpha})`;
+      // Distant dust and slow expanding water rings provide depth in every scene.
+      seeds.slice(0, 35).forEach((s,i) => dot(s.x*w, (s.y*h-t*8+h)%h, s.r, color(i, .2+.2*Math.sin(t+i)**2)));
+      for (let j=0;j<3;j++) {
+        g.strokeStyle=color(0,.15); g.lineWidth=1;
+        g.beginPath(); g.ellipse(cx,cy+radius*.7, radius*(.4+((t*.22+j*.3)%1)),radius*.16,0,0,tau);g.stroke();
+      }
+      g.save(); g.translate(cx, cy);
+      if (mode === 'burst' || mode === 'vortex' || mode === 'fireworks') {
+        for(let i=0;i<96;i++) {
+          const s=seeds[i], group=i%3;
+          const age=mode==='fireworks' ? clamp((t-.4-group*.65)/2.4) : clamp((t-.5)/3.6);
+          const a=i*2.39996+(mode==='vortex'?t*1.5:0);
+          const r=radius*(mode==='vortex' ? (.15+s.x*.85)*reveal : Math.sin(age*Math.PI*.7)*( .3+s.x));
+          const ox=mode==='fireworks'?(group-1)*radius*.62:0, oy=mode==='fireworks'?-group*radius*.32:0;
+          const x=Math.cos(a)*r+ox, y=Math.sin(a)*r+oy+age*age*radius*.4;
+          line([[x-Math.cos(a)*12,y-Math.sin(a)*12],[x,y]],color(group*45,.45),1.5);
+          dot(x,y,2+s.r,color(group*45));
+        }
+      } else if(mode==='lotus') {
+        for(let layer=2;layer>=0;layer--) for(let i=0;i<10;i++) {
+          g.save();g.rotate(i*tau/10+layer*.3+t*.06);
+          g.scale(reveal,reveal);g.fillStyle=color(layer*22,.38);g.strokeStyle=color(layer*22,.8);
+          g.beginPath();g.moveTo(0,0);g.bezierCurveTo(-radius*.48,-radius*.5, -radius*.3,-radius*(1-layer*.22),0,-radius*(1.15-layer*.23));
+          g.bezierCurveTo(radius*.3,-radius*(1-layer*.22),radius*.48,-radius*.5,0,0);g.fill();g.stroke();g.restore();
+        }
+        dot(0,0,14*reveal,'#fff5c5');
+      } else if(mode==='jelly' || mode==='lantern') {
+        for(let i=0;i<7;i++) {
+          const s=seeds[i], x=(s.x-.5)*w*.85, y=radius*1.8-((t*.23+s.y)%1)*radius*3;
+          const size=(18+s.r*12)*reveal;
+          g.save();g.translate(x,y);
+          if(mode==='jelly') {
+            for(let k=0;k<5;k++) line(Array.from({length:22},(_,n)=>[(k-2)*size*.3+Math.sin(n*.3+t*2+i)*n*.45,n*size*.09]),color(i*12,.55));
+            g.fillStyle=color(i*12,.4);g.beginPath();g.ellipse(0,0,size,size*.7,0,Math.PI,tau);g.closePath();g.fill();
+            line([[-size,0],[size,0]],color(i*12),2);
+          } else {
+            g.fillStyle=color(i*5,.4);g.strokeStyle=color();g.lineWidth=1;
+            g.beginPath();g.roundRect(-size*.6,-size,size*1.2,size*1.5,8);g.fill();g.stroke();
+            dot(0,0,5,'#fff4c2');line([[-size*.5,size*.5],[size*.5,size*.5]],color(),2);
+          }g.restore();
+        }
+      } else if(mode==='tide' || mode==='regatta') {
+        if(mode==='tide') {dot(radius*.45,-radius*.55,32*reveal,'#edf5ff');dot(radius*.58,-radius*.65,29*reveal,'#10213c');}
+        for(let j=0;j<5;j++) {
+          const points=Array.from({length:61},(_,i)=>{const x=-w/2+i*w/60;return [x,radius*.25+j*22+Math.sin(i*.19+t*1.5+j)*18*reveal];});
+          line(points,color(j*14,.65-j*.08),2);
+          if(mode==='regatta' && j<3) {
+            const x=((t*.15+j*.32)%1)*w-w/2, y=radius*.25+j*22;
+            g.fillStyle=color(j*65);g.beginPath();g.moveTo(x,y-65*reveal);g.lineTo(x-28,y-7);g.lineTo(x,y-7);g.fill();
+            line([[x-35,y],[x-22,y+12],[x+19,y+12],[x+32,y]],color(j*65),3);
+          }
+        }
+      } else if(mode==='coral') {
+        function branch(x,y,len,a,depth) {
+          if(!depth)return;
+          const nx=x+Math.sin(a)*len*reveal, ny=y-Math.cos(a)*len*reveal;
+          line([[x,y],[nx,ny]],color(depth*12,.8),depth*1.5);
+          if(depth===1)dot(nx,ny,3,color(55));
+          branch(nx,ny,len*.7,a-.5,depth-1);branch(nx,ny,len*.7,a+.5,depth-1);
+        }
+        for(let j=-1;j<=1;j++)branch(j*radius*.65,radius*.8,radius*.45,j*.2+Math.sin(t)*.04,5);
+      } else if(mode==='compass' || mode==='stars') {
+        const n=mode==='stars'?12:32;
+        const points=Array.from({length:n},(_,i)=>{const a=i*tau/n-Math.PI/2+t*.07;const r=radius*reveal*(mode==='stars'?(i%2?.48:1):1);return [Math.cos(a)*r,Math.sin(a)*r];});
+        line([...points,points[0]],color(0,.6),1);
+        points.forEach(([x,y],i)=>{dot(x,y,i%4?2:4,color(i*3));if(mode==='compass')line([[x*.8,y*.8],[x,y]],color());else if(i%2===0)line([[x,y],points[(i+4)%n]],color(25,.2));});
+        if(mode==='compass') {g.rotate(t*.3);g.fillStyle=color();g.beginPath();g.moveTo(0,-radius*.7*reveal);g.lineTo(13,15);g.lineTo(0,0);g.lineTo(-13,15);g.closePath();g.fill();}
+      } else if(mode==='diamond') {
+        for(let i=0;i<38;i++) {
+          const s=seeds[i], x=(s.x-.5)*w, y=((s.y+t*.2)%1)*h-h/2, size=(4+s.r*5)*reveal;
+          g.save();g.translate(x,y);g.rotate(t*.5+i);g.fillStyle=color(i*3,.6);
+          g.beginPath();g.moveTo(0,-size*1.6);g.lineTo(size,0);g.lineTo(0,size*1.6);g.lineTo(-size,0);g.closePath();g.fill();
+          line([[0,-size*1.6],[0,size*1.6]],'#e6fbff');g.restore();
+        }
+      }
+      g.restore();
+      frameId = requestAnimationFrame(draw);
+    }
+    frameId = requestAnimationFrame(draw);
+    finish(6100); // Also cleans up if the browser pauses animation frames.
+  }
+
   /* ─── Banks ─────────────────────────────────────────────────────── */
 
+  const CINEMA_BANK = SCENES.map(scene => ({id: scene[0], play: (host, ctx) => cinematic(host, ctx, scene)}));
+
   const GOAL_BANK = [
+    ...CINEMA_BANK,
     { id: 'aqua-aurora', play: aquaAurora },
     { id: 'bubble-cascade', play: bubbleCascade },
     { id: 'rain-reversal', play: rainReversal },
@@ -523,6 +686,7 @@
   ];
 
   const STREAK_BANK = [
+    ...CINEMA_BANK,
     { id: 'streak-inferno', play: streakInferno },
     { id: 'droplet-meteors', play: dropletMeteors },
     { id: 'firefly-fountain', play: fireflyFountain },
@@ -534,6 +698,7 @@
   ];
 
   const MILESTONE_BANK = [
+    ...CINEMA_BANK,
     { id: 'streak-inferno', play: streakInferno },
     { id: 'galaxy-swirl', play: galaxySwirl },
     { id: 'crystal-shatter', play: crystalShatter },
@@ -557,13 +722,24 @@
 
   function pickFromBank(bank) {
     if (!bank.length) return null;
-    // Avoid immediate repeat when possible
-    let pool = bank;
-    if (lastPlayedId && bank.length > 1) {
-      const filtered = bank.filter((b) => b.id !== lastPlayedId);
-      if (filtered.length) pool = filtered;
+    const key = 'water-celebration-rotation-' + (bank === GOAL_BANK ? 'goal' : bank === STREAK_BANK ? 'streak' : 'milestone');
+    let remaining = rotations.get(bank);
+    if (!remaining) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(key));
+        if (Array.isArray(saved)) {
+          remaining = [...new Set(saved)].map(id => bank.find(item => item.id === id)).filter(Boolean);
+        }
+      } catch { /* Storage is optional; celebrations still work without it. */ }
     }
-    return pick(pool);
+    if (!remaining || !remaining.length) remaining = shuffle(bank);
+    if (remaining.length > 1 && remaining[remaining.length - 1].id === lastPlayedId) {
+      [remaining[0], remaining[remaining.length - 1]] = [remaining[remaining.length - 1], remaining[0]];
+    }
+    const item = remaining.pop();
+    rotations.set(bank, remaining);
+    try { localStorage.setItem(key, JSON.stringify(remaining.map(entry => entry.id))); } catch { /* optional */ }
+    return item;
   }
 
   function reducedFallback(host, ctx) {
@@ -577,6 +753,7 @@
    * @param {{ title?: string, subtitle?: string, streak?: number, stamp?: string, short?: string, id?: string }} [opts]
    */
   function play(kind, opts = {}) {
+    reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false;
     const host = ensureRoot();
     clearFx();
     host.hidden = false;
@@ -641,7 +818,7 @@
       return item.id;
     }
 
-    const ctx = { title, subtitle, streak, stamp, short };
+    const ctx = { title: title || 'Goal met', subtitle, streak, stamp, short };
 
     if (reducedMotion) {
       reducedFallback(host, ctx);
@@ -678,6 +855,9 @@
   function listAnimations() {
     return shuffle(Object.keys(ALL_BY_ID));
   }
+
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearFx(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && root && !root.hidden) clearFx(); });
 
   global.WaterCelebrations = {
     play,
