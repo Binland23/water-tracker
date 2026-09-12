@@ -852,7 +852,7 @@ legend.field-label {
 .hour-col i {
   display: block;
   width: 100%;
-  height: calc(8% + var(--h, 0) * 0.92%);
+  height: 8%;
   border-radius: 3px 3px 0 0;
   background: color-mix(in srgb, var(--accent) 35%, var(--surface-2));
 }

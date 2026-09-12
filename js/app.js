@@ -1234,27 +1234,36 @@
     }
   }
 
+  function goalFillPct(total, goal, { reached = false } = {}) {
+    if (!(total > 0)) return 0;
+    if (reached) return 100;
+    const pct = goal > 0 ? (total / goal) * 100 : 0;
+    return clamp(pct, 6, 100);
+  }
+
   function renderWeek(target, { openCalendarOnClick = true } = {}) {
     const el = typeof target === 'string' ? $(target) : target;
     if (!el) return;
     const unit = store.unit;
     const today = dayKey();
-    const goal = storage.goalForDay(store, today);
     const week = storage.weekTotals(store, 7);
-    const maxBar = Math.max(goal, ...week.map((d) => d.total), 1);
     el.innerHTML = '';
     for (const day of week) {
-      const h = (day.total / maxBar) * 100;
+      const dayGoal = storage.goalForDay(store, day.key);
       const isToday = day.key === today;
       const done = storage.dayMetGoal(store, day.key, day.total);
+      const pct = dayGoal > 0 ? Math.round((day.total / dayGoal) * 100) : 0;
+      const h = goalFillPct(day.total, dayGoal, { reached: done });
       const col = document.createElement('button');
       col.type = 'button';
       col.className = 'week-col' + (isToday ? ' is-today' : '') + (done ? ' is-done' : '');
-      col.setAttribute('aria-label', `${formatDayLabel(day.date)}: ${formatAmountWithUnit(day.total, unit)}`);
+      const amountLabel = formatAmountWithUnit(day.total, unit);
+      const statusLabel = day.total > 0 ? `${amountLabel} (${pct}% of goal)` : amountLabel;
+      col.setAttribute('aria-label', `${formatDayLabel(day.date)}: ${statusLabel}`);
       col.dataset.dayKey = day.key;
       col.innerHTML = `
-        <div class="week-bar-track" title="${formatAmountWithUnit(day.total, unit)}">
-          <div class="week-bar" style="height:${clamp(h, day.total > 0 ? 6 : 0, 100)}%"></div>
+        <div class="week-bar-track" title="${statusLabel}">
+          <div class="week-bar" style="height:${h}%"></div>
         </div>
         <span class="week-label">${formatDayLabel(day.date, { short: true }).slice(0, 2)}</span>`;
       if (openCalendarOnClick) {
@@ -1270,13 +1279,14 @@
     }
   }
 
-  function renderHourTimeline(el, hours, { tall = false } = {}) {
+  function renderHourTimeline(el, hours, { tall = false, goalMl } = {}) {
     if (!el) return;
-    const max = Math.max(1, ...hours);
+    const scale = goalMl > 0 ? goalMl : Math.max(1, ...hours);
     el.innerHTML = hours
       .map((ml, h) => {
-        const pct = Math.round((ml / max) * 100);
-        return `<span class="hour-col${ml > 0 ? ' has' : ''}${tall ? ' tall' : ''}" title="${formatHour(h)} · ${formatAmountWithUnit(ml, store.unit)}" style="--h:${pct}"><i></i></span>`;
+        const pct = Math.round((ml / scale) * 100);
+        const barH = ml > 0 ? clamp(pct, 8, 100) : 8;
+        return `<span class="hour-col${ml > 0 ? ' has' : ''}${tall ? ' tall' : ''}" title="${formatHour(h)} · ${formatAmountWithUnit(ml, store.unit)}"><i style="height:${barH}%"></i></span>`;
       })
       .join('');
   }
@@ -1735,7 +1745,7 @@
           .join('');
       }
     }
-    renderHourTimeline($('#insight-hours'), data.hours, { tall: true });
+    renderHourTimeline($('#insight-hours'), data.hours, { tall: true, goalMl: data.goal });
   }
 
   function maybeRecordPaceWin() {
@@ -1814,7 +1824,7 @@
     renderDrinksGrid();
     renderLogList($('#log-list'), $('#log-empty'), entries, { actionable: true });
     renderWeek('#week-bars');
-    renderHourTimeline($('#hour-timeline'), storage.hourlyTotals(store));
+    renderHourTimeline($('#hour-timeline'), storage.hourlyTotals(store), { goalMl: goal });
 
     if (currentView === 'calendar') renderCalendar();
     if (currentView === 'insights') renderInsights();
