@@ -73,6 +73,7 @@
       <main class="main">
         <!-- TODAY -->
         <section id="view-today" class="app-view" data-view="today" aria-label="Today">
+          <button type="button" id="btn-custom" class="custom-btn">+ Custom amount</button>
           <section class="hero" aria-label="Daily progress">
             <div class="gauge-wrap">
               <svg class="gauge" viewBox="0 0 200 200" aria-hidden="true">
@@ -225,7 +226,6 @@
               <div id="drinks-grid" class="drinks-grid" role="group" aria-label="Drinks with hydration factors"></div>
             </div>
 
-            <button type="button" id="btn-custom" class="custom-btn">Custom amount</button>
           </section>
 
           <section class="week-section" aria-label="Last 7 days">
@@ -742,6 +742,17 @@
           </label>
         </div>
 
+        <div class="settings-block">
+          <label class="toggle-row" for="setting-electrolytes">
+            <span class="toggle-row-text">
+              <span class="toggle-row-title">Electrolytes</span>
+              <span class="toggle-row-sub">Show electrolyte logging, charged effects, and trophies. Past drinks stay in your history.</span>
+            </span>
+            <input id="setting-electrolytes" class="toggle-input" type="checkbox" checked />
+            <span class="toggle-switch" aria-hidden="true"></span>
+          </label>
+        </div>
+
         <div class="settings-block mascot-settings-block">
           <p class="field-label">Mascot</p>
           <label class="toggle-row" for="setting-mascot">
@@ -793,7 +804,7 @@
           <p class="settings-note hydration-note">
             Pure water counts 100%. Other drinks only count a portion toward your goal
             (coffee ~80%, soda ~75%, tea/sports ~90%, iced latte ~89%, juice/smoothie ~85%).
-            <strong>ELECTROLYTES</strong> still counts as the water you poured (1:1) — sticks are not extra fluid.
+            <span id="electrolytes-note"><strong>ELECTROLYTES</strong> still counts as the water you poured (1:1) — sticks are not extra fluid.</span>
           </p>
         </div>
 
@@ -1015,16 +1026,16 @@
     </div>
 
     <script src="js/utils.js?v=46"></script>
-    <script src="js/storage.js?v=46"></script>
+    <script src="js/storage.js?v=50"></script>
     <script src="js/haptics.js?v=46"></script>
     <script src="js/sound.js?v=46"></script>
     <script src="js/reminders.js?v=46"></script>
-    <script src="js/achievements.js?v=46"></script>
+    <script src="js/achievements.js?v=50"></script>
     <script src="js/mascot.js?v=46"></script>
     <script src="js/bg-photo.js?v=46"></script>
     <script src="js/celebrations.js?v=48"></script>
     <script src="js/celebration-preview.js?v=48"></script>
-    <script src="js/app.js?v=48"></script>
+    <script src="js/app.js?v=50"></script>
     <script>
       if ('serviceWorker' in navigator && location.protocol !== 'file:') {
         window.addEventListener('load', () => {

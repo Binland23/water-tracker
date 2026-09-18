@@ -568,8 +568,12 @@
     return Boolean(ensureMap(store)[id]);
   }
 
+  function isEnabled(store, id) {
+    return store?.electrolytesEnabled !== false || BY_ID[id]?.category !== 'Electrolytes';
+  }
+
   function unlockedCount(store) {
-    return Object.keys(ensureMap(store)).length;
+    return Object.keys(ensureMap(store)).filter((id) => isEnabled(store, id)).length;
   }
 
   function unseenIds(store) {
@@ -577,7 +581,7 @@
     const seen = ensureSeenMap(store);
     const ids = [];
     for (const id of Object.keys(unlocked)) {
-      if (!seen[id]) ids.push(id);
+      if (!seen[id] && isEnabled(store, id)) ids.push(id);
     }
     return ids;
   }
@@ -601,8 +605,8 @@
     return changed;
   }
 
-  function totalCount() {
-    return CATALOG.length;
+  function totalCount(store) {
+    return CATALOG.filter((a) => isEnabled(store, a.id)).length;
   }
 
   function goalDaysInWindow(store, storage, totals, endDate, span) {
@@ -923,7 +927,7 @@
     const want = new Set();
 
     const mark = (id, cond) => {
-      if (cond && BY_ID[id] && !map[id] && !blocked(id)) want.add(id);
+      if (cond && BY_ID[id] && isEnabled(store, id) && !map[id] && !blocked(id)) want.add(id);
     };
 
     mark('first-sip', (store.entries || []).length >= 1);
@@ -1086,6 +1090,7 @@
     const groups = [];
     const byCat = new Map();
     for (const a of CATALOG) {
+      if (!isEnabled(store, a.id)) continue;
       const unlocked = Boolean(map[a.id]);
       if (!byCat.has(a.category)) byCat.set(a.category, []);
       byCat.get(a.category).push({

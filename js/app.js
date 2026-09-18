@@ -811,7 +811,7 @@
     const goal = storage.goalForDay(store, dayKey());
     const entries = storage.entriesForDay(store);
     const reached = total >= goal && goal > 0 && total > 0;
-    const elyToday = entries.some((e) => typeof e.electrolytes === 'number' && e.electrolytes >= 1);
+    const elyToday = store.electrolytesEnabled !== false && entries.some((e) => typeof e.electrolytes === 'number' && e.electrolytes >= 1);
     const streak = storage.currentStreak(store);
     return { total, goal, reached, streak, elyToday, ...extra };
   }
@@ -837,6 +837,7 @@
 
   function speakMascot(opts = {}) {
     if (!isMascotEnabled() || !mascotApi) return '';
+    if (opts.event === 'ely' && store.electrolytesEnabled === false) return '';
     if (typeof mascotApi.speak === 'function') return mascotApi.speak(opts);
     return '';
   }
@@ -882,7 +883,7 @@
     const id = achievementToastQueue.shift();
     if (!id) return;
     const def = achievements.defById?.(id);
-    if (!def) {
+    if (!def || (store.electrolytesEnabled === false && def.category === 'Electrolytes')) {
       drainAchievementToasts();
       return;
     }
@@ -945,7 +946,7 @@
     if (!badge || !achievements) return;
     const unseen = achievements.unseenCount ? achievements.unseenCount(store) : 0;
     const n = achievements.unlockedCount(store);
-    const total = achievements.totalCount();
+    const total = achievements.totalCount(store);
     if (unseen > 0) {
       badge.hidden = false;
       badge.removeAttribute('aria-hidden');
@@ -1008,7 +1009,7 @@
     const fill = $('#achievements-progress-fill');
     if (!list || !achievements) return;
     const unlocked = achievements.unlockedCount(store);
-    const total = achievements.totalCount();
+    const total = achievements.totalCount(store);
     const pct = total > 0 ? Math.round((unlocked / total) * 100) : 0;
     if (progress) progress.textContent = `${unlocked} / ${total} unlocked`;
     if (fill) fill.style.width = `${pct}%`;
@@ -1102,6 +1103,7 @@
   }
 
   function playElectrolytesFx() {
+    if (store.electrolytesEnabled === false) return;
     const fx = $('#electrolytes-fx');
     const wrap = $('.gauge-wrap');
     const sparks = $('#ely-sparks');
@@ -1779,7 +1781,7 @@
     renderPace(total, goal);
 
     const status = $('#status-chip');
-    const elyToday = entries.some((e) => typeof e.electrolytes === 'number' && e.electrolytes >= 1);
+    const elyToday = store.electrolytesEnabled !== false && entries.some((e) => typeof e.electrolytes === 'number' && e.electrolytes >= 1);
     if (status) {
       if (reached) {
         status.textContent = elyToday
@@ -1820,6 +1822,9 @@
       if (unitEl) unitEl.textContent = `${unit} water`;
     });
 
+    $('#btn-electrolytes').hidden = store.electrolytesEnabled === false;
+    $('#electrolytes-note').hidden = store.electrolytesEnabled === false;
+    $('#setting-electrolytes').checked = store.electrolytesEnabled !== false;
     renderBottles();
     renderDrinksGrid();
     renderLogList($('#log-list'), $('#log-empty'), entries, { actionable: true });
@@ -1979,6 +1984,7 @@
   }
 
   function addElectrolytes(volumeMl, sticks, opts = {}) {
+    if (store.electrolytesEnabled === false) return null;
     const n = electrolytesSticksClamp(sticks);
     const vol = electrolytesWaterMl(volumeMl);
     if (vol <= 0) return null;
@@ -1998,6 +2004,7 @@
   }
 
   function openElectrolytesSheet() {
+    if (store.electrolytesEnabled === false) return;
     electrolytesSticks = ELECTROLYTES.defaultSticks;
     const unit = store.unit;
     const amount = $('#electrolytes-amount');
@@ -2126,7 +2133,7 @@
     sel.innerHTML = [
       `<option value="water">Water</option>`,
       ...bottles.map((b) => `<option value="bottle:${escapeHtml(b.id)}">${escapeHtml(b.label)}</option>`),
-      `<option value="electrolytes">ELECTROLYTES</option>`,
+      ...(store.electrolytesEnabled !== false ? [`<option value="electrolytes">ELECTROLYTES</option>`] : []),
       ...drinks.map((d) => `<option value="drink:${escapeHtml(d.id)}">${escapeHtml(d.label)}</option>`),
     ].join('');
     if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
@@ -2566,6 +2573,21 @@
     $('#btn-settings')?.addEventListener('click', () => {
       render();
       openSheet('#settings-sheet');
+    });
+    $('#setting-electrolytes')?.addEventListener('change', (e) => {
+      store.electrolytesEnabled = e.target.checked;
+      storage.save(store);
+      if (!store.electrolytesEnabled) {
+        clearTimeout(playElectrolytesFx._t);
+        $('#electrolytes-fx').hidden = true;
+        $('#electrolytes-fx').classList.remove('is-active');
+        $('.gauge-wrap')?.classList.remove('is-charged');
+        document.body.classList.remove('electrolytes-charged');
+      }
+      populateDayAddKinds();
+      prefillDayAddAmount();
+      render();
+      haptic('light');
     });
     $('#setting-mascot')?.addEventListener('change', (e) => {
       setMascotEnabled(!!e.target.checked);
